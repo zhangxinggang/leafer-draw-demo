@@ -1,0 +1,58 @@
+.business-properties {
+  padding: 0 16px;
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 12px;
+    color: #666;
+
+    .dark-mode & {
+      color: #ccc;
+    }
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  .properties-form {
+    :global {
+      .ant-form-item {
+        margin-bottom: 16px;
+      }
+      .ant-collapse {
+        background: transparent;
+        border: none;
+        &-item {
+          border: none;
+        }
+        &-header {
+          padding: 16px 0 0 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #666;
+          .dark-mode & {
+            color: #ccc;
+          }
+        }
+        &-content {
+          border-top: 1px solid #f0f0f0;
+          .dark-mode & {
+            border-top-color: #303030;
+          }
+        }
+        &-content-box {
+          padding: 16px 16px 0 16px;
+        }
+      }
+    }
+
+    .color-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  }
+}

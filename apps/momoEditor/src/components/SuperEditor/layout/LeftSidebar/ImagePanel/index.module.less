@@ -1,0 +1,90 @@
+.image-panel {
+  padding: 16px;
+
+  .panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #333;
+
+    .dark-mode & {
+      color: #fff;
+    }
+  }
+
+  .image-controls {
+    margin-bottom: 12px;
+  }
+
+  .image-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    width: 100%;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+
+    &.columns-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    &.columns-1 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .image-item {
+    display: flex;
+    flex-direction: column;
+    width: 95px;
+    height: 95px;
+    margin: 5px auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #ffffff;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    .dark-mode & {
+      border-color: #404040;
+      background: #2a2a2a;
+    }
+
+    &:hover {
+      border-color: #1890ff;
+      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+    }
+
+    .image-thumbnail {
+      width: 100%;
+      height: 70px;
+      object-fit: cover;
+    }
+
+    .image-name {
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #666;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+
+      .dark-mode & {
+        color: #999;
+      }
+    }
+  }
+
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #999;
+
+    .dark-mode & {
+      color: #666;
+    }
+  }
+}

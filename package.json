@@ -1,0 +1,38 @@
+{
+  "name": "leafer-draw-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @momo/leafer-editor build",
+    "commit": "git-cz",
+    "dev": "pnpm --filter @momo/leafer-editor dev",
+    "format": "prettier --write \"./apps/**/*.{ts,tsx}\" \"./packages/**/*.{ts,tsx}\"",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.tsx",
+    "lint-staged": "lint-staged",
+    "prepare": "husky",
+    "preview": "pnpm --filter @momo/leafer-editor preview"
+  },
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.7.2",
+    "@commitlint/config-conventional": "^17.7.0",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.0",
+    "@types/node": "^25.5.0",
+    "@umijs/fabric": "^4.0.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.1",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.3.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-organize-imports": "^4.2.0",
+    "prettier-plugin-packagejson": "^2.5.19",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.18.2"
+  }
+}

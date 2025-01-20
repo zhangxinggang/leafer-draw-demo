@@ -1,0 +1,122 @@
+.top-bar {
+  height: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 8px;
+  flex-shrink: 0;
+  z-index: 100;
+  position: relative;
+  box-sizing: border-box;
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  .dark-mode & {
+    background: #2a2a2a;
+    border-bottom-color: #404040;
+    color: #ffffff;
+
+    // 暗黑模式下的按钮样式
+    :global(.ant-btn) {
+      color: #ffffff;
+      background: #1a1a1a;
+      border-color: #404040;
+
+      &:hover {
+        color: #ffffff;
+        background: #2a2a2a;
+        border-color: #1890ff;
+      }
+
+      &.ant-btn-primary {
+        background: #1890ff;
+        border-color: #1890ff;
+        color: #ffffff;
+      }
+    }
+
+    :global(.ant-input-number) {
+      background: #1a1a1a;
+      border-color: #404040;
+      color: #ffffff;
+
+      input {
+        background: #1a1a1a;
+        color: #ffffff;
+      }
+    }
+  }
+
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .divider {
+    width: 1px;
+    height: 24px;
+    background: #e0e0e0;
+    margin: 0 4px;
+    flex-shrink: 0;
+
+    .dark-mode & {
+      background: #404040;
+    }
+  }
+}
+
+.export-modal-content {
+  display: flex;
+  flex-direction: row;
+  margin-top: 10px;
+
+  .export-preview {
+    padding: 8px;
+    width: 368px;
+    height: 368px;
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==)
+      left center;
+
+    .export-image {
+      width: 360px;
+      height: 360px;
+      object-fit: contain;
+    }
+  }
+
+  .export-config {
+    margin-left: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    .export-form {
+      .color {
+        width: 26px;
+        height: 26px;
+        cursor: pointer;
+      }
+    }
+
+    .export-operator {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+  }
+}
