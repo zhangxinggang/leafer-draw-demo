@@ -48,8 +48,8 @@ export interface Cmp {
   scaleY?: number;
   /** 层叠顺序 */
   zIndex?: number;
-
   strokeWidth?: number;
+  data?: any
 }
 
 export interface TextCmp extends Cmp {

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import classNames from 'classnames';
 import useToolbarStore, { ToolBarState } from '~/store/toolbar';
 import Iconfont, { IconType } from '~/components/Iconfont';
@@ -9,12 +9,14 @@ import { generateCmp } from '../canvas/generator';
 import { useShallow } from 'zustand/shallow';
 import useCanvasStore from '~/store/canvas';
 import S from './index.module.less';
+import { ExportOutlined } from '@ant-design/icons';
 
 interface Icon {
   name: string;
   size: number;
   type: ToolBarState;
   onClick: () => void;
+  icon?: React.ReactNode
 }
 
 export default function Toolbar() {
@@ -71,6 +73,15 @@ export default function Toolbar() {
       type: ToolBarState.Rect,
       onClick: () => {
         setState(ToolBarState.Rect);
+      },
+    },
+    {
+      name: 'react-line',
+      size: 18,
+      type: ToolBarState.RectLine,
+      icon: <ExportOutlined style={{ fontSize: 18 }} />,
+      onClick: () => {
+        setState(ToolBarState.RectLine);
       },
     },
     {
@@ -167,7 +178,7 @@ export default function Toolbar() {
             className={classNames(S.icon, state === icon.type && S.active)}
             onClick={icon.onClick}
           >
-            <Iconfont name={icon.name as IconType} size={icon.size} />
+            {icon.icon ? icon.icon : <Iconfont name={icon.name as IconType} size={icon.size} />}
           </div>
         );
       })}

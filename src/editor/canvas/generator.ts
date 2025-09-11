@@ -17,9 +17,10 @@ export function generateCmp(
     startY: number;
     endX: number;
     endY: number;
+    leaferAttr?: Partial<Cmp>;
   }
 ): Cmp | null {
-  let { startX, startY, endX, endY } = positions;
+  let { startX, startY, endX, endY, leaferAttr, } = positions;
 
   const baseModel = {
     type: cmpType,
@@ -27,6 +28,7 @@ export function generateCmp(
     name: '',
     locked: false,
     opacity: 1,
+    ...leaferAttr
   };
 
   if ([CmpType.Rect, CmpType.Ellipse].includes(cmpType)) {
@@ -71,10 +73,10 @@ export function generateCmp(
     } as TextCmp;
   } else if (cmpType === CmpType.Arrow) {
     return {
-      ...baseModel,
       points: [startX, startY, endX, endY],
       stroke: primaryColor,
       strokeWidth: 2,
+      ...baseModel,
     } as ArrowCmp;
   } else if (cmpType === CmpType.Image) {
     return {
