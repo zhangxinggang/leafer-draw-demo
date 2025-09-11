@@ -58,6 +58,7 @@ export interface TextCmp extends Cmp {
   fontSize: number;
   fontFamily: string;
   autoHeight?: boolean;
+  data?: any;
 }
 
 export interface RectCmp extends Cmp {
@@ -84,6 +85,7 @@ export interface ArrowCmp extends Cmp {
 export interface ImageCmp extends Cmp {
   type: CmpType.Image;
   url: string;
+  data?: any;
 }
 
 export interface PathCmp extends Cmp {

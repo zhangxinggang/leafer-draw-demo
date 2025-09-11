@@ -22,9 +22,11 @@ import {
 import useCanvasStore from '~/store/canvas';
 import debounce from 'lodash-es/debounce';
 import { PathEditorEvent } from 'leafer-x-path-editor';
+import useRectLine from './items/useRectLine'
 
 export default function useEventHandler() {
   const pointDownRef = useRef<IPointData>();
+  const { preRectLine, addRectLine } = useRectLine()
   const { app, setGenCmp, setShowSetting } = useCanvasStore(
     useShallow((state) => ({
       app: state.app,
@@ -65,6 +67,13 @@ export default function useEventHandler() {
     const point = e.getPagePoint();
     const toolbarState = useToolbarStore.getState().state;
 
+    if(toolbarState === ToolBarState.RectLine){
+      preRectLine.current = {
+        count: 1,
+      }
+      return;
+    }
+
     if (toolbarState === ToolBarState.Text) {
       setGenCmp(
         generateCmp(CmpType.Text, {
@@ -74,7 +83,6 @@ export default function useEventHandler() {
           endY: point.y,
         })
       );
-
       return;
     }
 
@@ -98,6 +106,10 @@ export default function useEventHandler() {
 
     if (appRef.current) appRef.current.editor.visible = false;
     const { x, y } = point;
+    if(toolbarState === ToolBarState.RectLine){
+      addRectLine({ point, event: e })
+      return;
+    }
     if (!pointDownRef.current) return;
     const { x: startX, y: startY } = pointDownRef.current;
 
@@ -152,8 +164,8 @@ export default function useEventHandler() {
   };
   const onPointUp = () => {
     pointDownRef.current = undefined;
-
     pointPositions.current = [];
+    preRectLine.current = null;
 
     const genCmp = useCanvasStore.getState().genCmp;
     if (genCmp) {

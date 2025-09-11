@@ -17,9 +17,10 @@ export function generateCmp(
     startY: number;
     endX: number;
     endY: number;
+    data?: any;
   }
 ): Cmp | null {
-  let { startX, startY, endX, endY } = positions;
+  let { startX, startY, endX, endY, data, } = positions;
 
   const baseModel = {
     type: cmpType,
@@ -27,6 +28,7 @@ export function generateCmp(
     name: '',
     locked: false,
     opacity: 1,
+    data
   };
 
   if ([CmpType.Rect, CmpType.Ellipse].includes(cmpType)) {

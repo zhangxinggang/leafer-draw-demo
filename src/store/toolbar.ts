@@ -10,6 +10,7 @@ export enum ToolBarState {
   Line,
   Image,
   Pen,
+  RectLine,
 }
 
 export interface ToolBarStore {

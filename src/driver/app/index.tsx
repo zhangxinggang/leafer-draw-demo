@@ -21,6 +21,7 @@ import '@leafer-in/export';
 import '@leafer-in/text-editor';
 import '@leafer-in/view';
 import '@leafer-in/find';
+import { Snap } from 'leafer-x-easy-snap'
 import { PathEditorEvent } from 'leafer-x-path-editor';
 
 export interface IZoomLayer {
@@ -112,7 +113,6 @@ function App(props: PropsWithChildren<AppProps>) {
         dragAnimate: true,
       },
     });
-
     app.sky = app.addLeafer();
     app.sky.add((app.editor = new Editor()));
 
@@ -153,7 +153,9 @@ function App(props: PropsWithChildren<AppProps>) {
     app.on(PointerEvent.MOVE, onPointMove);
 
     onAppChange?.(app);
-
+    const snap = new Snap(app)
+    // 启用
+    snap.enable(true)
     return app;
   });
 
