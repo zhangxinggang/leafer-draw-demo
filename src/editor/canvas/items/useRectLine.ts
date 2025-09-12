@@ -118,7 +118,10 @@ const useRectLine = () => {
         endX: rectData.startX + nowWidth / 2,
         endY: rectData.startY + nowHeight / 2,
         leaferAttr: {
-          stroke: 'red',
+          data: {
+            type: ToolBarState.RectLine
+          },
+          stroke: '#494747',
           zIndex: 10
         }
       })
@@ -135,10 +138,13 @@ const useRectLine = () => {
       data: {
         type: ToolBarState.RectLine
       },
-      zIndex: 1
+      zIndex: 1,
+      stroke: '#505057',
+      strokeWidth: 1,
+      fill: 'rgba(255, 255, 255, 0.66)',
     }
     const rectComp: any = generateCmp(CmpType.Rect, rectData)
-    addDatas.unshift({ ...rectComp })
+    addDatas.push({ ...rectComp })
     addDatas.forEach(addCmp)
     refreshPreRectLine(rectData);
   }

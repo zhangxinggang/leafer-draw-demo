@@ -9,7 +9,7 @@ import { generateCmp } from '../canvas/generator';
 import { useShallow } from 'zustand/shallow';
 import useCanvasStore from '~/store/canvas';
 import S from './index.module.less';
-import { ExportOutlined } from '@ant-design/icons';
+import { ExportOutlined, ApartmentOutlined } from '@ant-design/icons';
 
 interface Icon {
   name: string;
@@ -82,6 +82,15 @@ export default function Toolbar() {
       icon: <ExportOutlined style={{ fontSize: 18 }} />,
       onClick: () => {
         setState(ToolBarState.RectLine);
+      },
+    },
+    {
+      name: 'line-rect',
+      size: 18,
+      type: ToolBarState.LineRect,
+      icon: <ApartmentOutlined style={{ fontSize: 18 }} />,
+      onClick: () => {
+        setState(ToolBarState.LineRect);
       },
     },
     {

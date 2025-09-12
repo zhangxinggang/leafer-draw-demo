@@ -23,10 +23,12 @@ import useCanvasStore from '~/store/canvas';
 import debounce from 'lodash-es/debounce';
 import { PathEditorEvent } from 'leafer-x-path-editor';
 import useRectLine from './items/useRectLine'
+import useLineRect from './items/useLineRect'
 
 export default function useEventHandler() {
   const pointDownRef = useRef<IPointData>();
   const { preRectLine, addRectLine } = useRectLine()
+  const { preLineRect, addLineRect } = useLineRect()
   const { app, setGenCmp, setShowSetting } = useCanvasStore(
     useShallow((state) => ({
       app: state.app,
@@ -67,10 +69,18 @@ export default function useEventHandler() {
     const point = e.getPagePoint();
     const toolbarState = useToolbarStore.getState().state;
 
-    if(toolbarState === ToolBarState.RectLine){
+    if (toolbarState === ToolBarState.RectLine) {
       preRectLine.current = {
         count: 1,
       }
+      return;
+    }
+    if (toolbarState === ToolBarState.LineRect) {
+      const cNode: any = appRef.current?.tree.pick(e)
+      const target = cNode?.target
+      const data = target?.data
+      if (data?.type !== ToolBarState.RectLine) return;
+      preLineRect.current = { targets: [target], startPoint: { x: target.x + target.width / 2, y: target.y + target.height / 2 } }
       return;
     }
 
@@ -106,8 +116,12 @@ export default function useEventHandler() {
 
     if (appRef.current) appRef.current.editor.visible = false;
     const { x, y } = point;
-    if(toolbarState === ToolBarState.RectLine){
+    if (toolbarState === ToolBarState.RectLine) {
       addRectLine({ point, event: e })
+      return;
+    }
+    if (toolbarState === ToolBarState.LineRect) {
+      addLineRect({ event: e })
       return;
     }
     if (!pointDownRef.current) return;
@@ -166,6 +180,7 @@ export default function useEventHandler() {
     pointDownRef.current = undefined;
     pointPositions.current = [];
     preRectLine.current = null;
+    preLineRect.current = null;
 
     const genCmp = useCanvasStore.getState().genCmp;
     if (genCmp) {

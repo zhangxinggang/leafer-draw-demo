@@ -28,7 +28,6 @@ export function generateCmp(
     name: '',
     locked: false,
     opacity: 1,
-    ...leaferAttr
   };
 
   if ([CmpType.Rect, CmpType.Ellipse].includes(cmpType)) {
@@ -54,6 +53,7 @@ export function generateCmp(
       width,
       height,
       fill: primaryColor,
+      ...leaferAttr
     };
   } else if (cmpType === CmpType.Line) {
     return {
@@ -61,6 +61,7 @@ export function generateCmp(
       path: `M${startX} ${startY} L${endX} ${endY}`,
       stroke: primaryColor,
       strokeWidth: 2,
+      ...leaferAttr
     } as PathCmp;
   } else if (cmpType === CmpType.Text) {
     return {
@@ -70,13 +71,15 @@ export function generateCmp(
       text: 'Text',
       fontSize: 20,
       fill: primaryColor,
+      ...leaferAttr
     } as TextCmp;
   } else if (cmpType === CmpType.Arrow) {
     return {
+      ...baseModel,
       points: [startX, startY, endX, endY],
       stroke: primaryColor,
       strokeWidth: 2,
-      ...baseModel,
+      ...leaferAttr
     } as ArrowCmp;
   } else if (cmpType === CmpType.Image) {
     return {
@@ -85,9 +88,10 @@ export function generateCmp(
       y: startY,
       width: endX - startX,
       height: endY - startY,
+      ...leaferAttr
     } as ImageCmp;
   } else if (cmpType === CmpType.Pen) {
-    return { ...baseModel, stroke: primaryColor, strokeWidth: 3 } as PenCmp;
+    return { ...baseModel, stroke: primaryColor, strokeWidth: 3, ...leaferAttr } as PenCmp;
   }
 
   return null;
