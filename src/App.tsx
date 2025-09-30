@@ -1,7 +1,7 @@
 import { ConfigProvider } from 'antd';
-import Editor from './editor';
+// import LeaferCanvas from './components/LeaferCanvas';
+import SuperEditor, { primaryColor } from './components/SuperEditor';
 
-import { primaryColor } from './styles/theme';
 import './App.css';
 
 function App() {
@@ -16,9 +16,8 @@ function App() {
             trackBg: primaryColor,
           },
         },
-      }}
-    >
-      <Editor />
+      }}>
+      <SuperEditor />
     </ConfigProvider>
   );
 }

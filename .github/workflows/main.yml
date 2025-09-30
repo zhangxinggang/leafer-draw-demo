@@ -43,7 +43,7 @@ jobs:
         with:
           switches: -avzr --delete
           path: dist/
-          remote_path: /root/project/luminous/
+          remote_path: /root/project/SuperEditor/
           remote_host: ${{ secrets.SSH_HOST }}
           remote_port: ${{ secrets.SSH_PORT }}
           remote_user: ${{ secrets.SSH_USER }}
