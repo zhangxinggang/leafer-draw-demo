@@ -6,7 +6,6 @@ import {
   IPointData,
   IShadowEffect,
 } from 'leafer-ui';
-import { AnyObj } from '.';
 
 export interface CmpLeaferAttr {
   id: string;
@@ -119,6 +118,43 @@ export interface PenCmp extends Cmp {
   path?: string | IPathCommandData;
 }
 
+export enum RenderType {
+  ADD = 'ADD',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  MIXED = 'MIXED',
+}
+
+export interface IBusinessStore {
+  businessConf: {
+    unitWidth: number;
+    unitHeight: number;
+    rectWidth: number;
+    rectHeight: number;
+    rectGroupName: string;
+    rectGroupLimitArea: number;
+    rectGroupLimitWidth: number;
+    rectGroupLimitHeight: number;
+    connGroupLimit: number;
+    connGroupLimitNum: number;
+  };
+  businessStyle: {
+    tempReminderColor: string;
+    rectGroupOption: {
+      overloadColor: string;
+      fill: string;
+    };
+    connGroupColors: string[];
+    rectGroupColors: string[];
+    rectBorderColor: string;
+  };
+  freeRouting: boolean;
+  rectGroupIds: string[];
+  updateRectGroupIds: (params: string[], type: RenderType) => void;
+  updateBusinessConf: (conf: Partial<IBusinessStore['businessConf']>) => void;
+  updateBusinessStyle: (style: Partial<IBusinessStore['businessStyle']>) => void;
+}
+
 export enum CmpType {
   Text,
   Rect,
@@ -134,17 +170,10 @@ export enum CmpType {
   rectGroup,
 }
 
-export enum RenderType {
-  ADD = 'ADD',
-  UPDATE = 'UPDATE',
-  DELETE = 'DELETE',
-  MIXED = 'MIXED',
-}
-
 export interface RenderParams {
   cmp: CmpNeedId;
   type?: RenderType;
-  busData?: AnyObj;
+  busData?: IBusinessStore;
 }
 
 export interface UndoRedoState {
@@ -157,4 +186,12 @@ export interface UndoRedoState {
   deleteCmps?: Cmp[];
   // 操作时间戳（可选，用于调试）
   timestamp?: number;
+}
+
+export interface CmpRenderParams {
+  cmps: CmpNeedId[];
+  type?: RenderType;
+  noRecord?: boolean;
+  updateEditBox?: boolean;
+  busData?: IBusinessStore;
 }

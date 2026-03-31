@@ -12,5 +12,4 @@ export * from './utils/utils';
 export * from './generator';
 
 // 渲染器（React组件）
-export * from './render';
 export * from './renderer';

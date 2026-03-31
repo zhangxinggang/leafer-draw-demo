@@ -1,4 +1,4 @@
-import { App } from 'leafer-ui';
+import type { App } from 'leafer-ui';
 
 export const elementChange = (e: any) => {
   const attrName = e?.attrName;
@@ -12,11 +12,11 @@ export const elementChange = (e: any) => {
  * 设置全局 app 引用
  */
 export function setApp(app: App | null) {
-  window.spuEditorApp = app;
+  globalThis.spuEditorApp = app;
 }
 /**
  * 获取全局 app 实例
  */
 export function getApp(): App | null {
-  return window.spuEditorApp || null;
+  return globalThis.spuEditorApp || null;
 }

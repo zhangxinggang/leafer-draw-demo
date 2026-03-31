@@ -1,26 +1,33 @@
-import { Ellipse, Rect, Text } from 'leafer-ui';
-import { AnyObj, Cmp, RenderParams, RenderType } from '../../types';
+import type { UI } from 'leafer-ui';
+import { Cmp, IBusinessStore, RenderParams, RenderType } from '../../types';
 import { getRandomColor } from '../../utils';
 import { onBusAddCmp } from '../../utils/business';
 import { getCmpByIds } from '../../utils/cmp';
 import { getApp } from '../../utils/leafer';
 import { connCircleSize, getConnStartCircleId, getConnStartCircleSIds } from '../utils/conn';
-import { handleDelete, handleUpdate } from '../utils/renderHelper';
+import { handleTypeRender } from '../utils/renderHelper';
 
+type IFunc = new (props: any) => UI;
+interface LeaferObj {
+  Ellipse: IFunc;
+  Rect: IFunc;
+  Text: IFunc;
+}
 interface AddStartCircleProps {
   id: string;
   sourceConnId: string;
   groupIndex: number;
-  busData: AnyObj;
+  busData: IBusinessStore;
+  leaferObj;
 }
 
-const getGroupIndex = (id: string, busData: AnyObj) => {
+const getGroupIndex = (id: string, busData: IBusinessStore) => {
   const { rectGroupIds } = busData;
   const groupIndex = rectGroupIds.indexOf(id);
   return groupIndex;
 };
 
-const getGroupFillColor = (key: string, busData: AnyObj) => {
+const getGroupFillColor = (key: string, busData: IBusinessStore) => {
   const { businessStyle } = busData;
   const groupIndex = getGroupIndex(key, busData);
   const color = getRandomColor({
@@ -30,7 +37,7 @@ const getGroupFillColor = (key: string, busData: AnyObj) => {
   return color;
 };
 
-const getGroupLineFillColor = (groupIndex: number, busData: AnyObj) => {
+const getGroupLineFillColor = (groupIndex: number, busData: IBusinessStore) => {
   const { businessStyle } = busData;
   const color = getRandomColor({
     colors: businessStyle.connGroupColors,
@@ -39,7 +46,13 @@ const getGroupLineFillColor = (groupIndex: number, busData: AnyObj) => {
   return color;
 };
 
-const addStartCircle = ({ id, sourceConnId, groupIndex, busData }: AddStartCircleProps) => {
+const addStartCircle = ({
+  id,
+  sourceConnId,
+  groupIndex,
+  busData,
+  leaferObj,
+}: AddStartCircleProps) => {
   const app = getApp();
   if (!app) return null;
   const storeCmp = getCmpByIds([sourceConnId])[0];
@@ -49,7 +62,7 @@ const addStartCircle = ({ id, sourceConnId, groupIndex, busData }: AddStartCircl
   const startX = (width - connCircleSize) / 2;
   const startY = (height - connCircleSize) / 2;
   const fill = getGroupLineFillColor(groupIndex, busData);
-  const ellipse = new Ellipse({
+  const ellipse = new leaferObj.Ellipse({
     id: getConnStartCircleId(id),
     width: connCircleSize,
     height: connCircleSize,
@@ -59,7 +72,7 @@ const addStartCircle = ({ id, sourceConnId, groupIndex, busData }: AddStartCircl
   });
   const text = `${groupIndex + 1}-1`;
   const fontSize = connCircleSize / text.length;
-  const textElement = new Text({
+  const textElement = new leaferObj.Text({
     text,
     x: startX + connCircleSize / 4 - 1,
     y: startY + connCircleSize / 2,
@@ -76,32 +89,30 @@ const addStartCircle = ({ id, sourceConnId, groupIndex, busData }: AddStartCircl
   box.add(textElement);
 };
 
-const drawStartCircles = (cmp: Cmp, busData: AnyObj) => {
+const drawStartCircles = (cmp: Cmp, busData: IBusinessStore, leaferObj: LeaferObj) => {
   const { rectGroupChildIds } = cmp.backendData;
   const ids = getConnStartCircleSIds(rectGroupChildIds);
   if (ids.length) {
     const groupIndex = getGroupIndex(cmp.id, busData);
     ids.forEach((id) => {
-      addStartCircle({ id, sourceConnId: id, busData, groupIndex });
+      addStartCircle({ id, sourceConnId: id, busData, groupIndex, leaferObj });
     });
   }
 };
 
-export default function component({ cmp, type = RenderType.ADD, busData }: RenderParams) {
-  const app = getApp();
-  if (!app) return null;
-  const storeCmp = getCmpByIds([cmp.id])?.[0] || cmp;
-
-  if (type === RenderType.DELETE) {
-    return handleDelete(storeCmp);
-  }
-
-  if (type === RenderType.UPDATE) {
-    return handleUpdate(storeCmp);
-  }
-  drawStartCircles(storeCmp, busData);
-  onBusAddCmp(storeCmp);
-  const element = new Rect({ ...cmp, fill: getGroupFillColor(cmp.id, busData) });
-  app.tree.add(element);
-  return element;
+export default function (props: LeaferObj) {
+  const { Rect } = props;
+  return function component({ cmp, type = RenderType.ADD, busData }: RenderParams) {
+    const app = getApp();
+    if (!app) return null;
+    const isRender = handleTypeRender({ type, cmp });
+    if (isRender) {
+      return null;
+    }
+    drawStartCircles(cmp, busData, props);
+    onBusAddCmp(cmp);
+    const element = new Rect({ ...cmp, fill: getGroupFillColor(cmp.id, busData) });
+    app.tree.add(element);
+    return element;
+  };
 }

@@ -1,4 +1,4 @@
-import { Cmp, cmpRender, CmpType, generateCmp, RenderType } from '@momo/leafer-draw';
+import { Cmp, CmpType, generateCmp, RenderType } from '@momo/leafer-draw';
 import {
   checkConnIsSquare,
   checkIsOverMaxArea,
@@ -11,6 +11,7 @@ import { useShallow } from 'zustand/shallow';
 import useBusinessStore from '../../../store/business';
 import useCanvasStore from '../../../store/canvas';
 import useModelStore from '../../../store/model';
+import { renderView } from '../draw';
 
 interface IAddRectLineProps {
   event: PointerEvent;
@@ -88,8 +89,7 @@ const useLineRect = () => {
       preLineRect.current.push(tempTarget);
       addTempReminderCmps(tempCmps);
     } else {
-      const busData = useBusinessStore.getState();
-      cmpRender({ cmps: [connComp], type: RenderType.ADD, noRecord: true, busData });
+      renderView({ cmps: [connComp], type: RenderType.ADD, noRecord: true });
       onceAddConnsRef.current.push(connComp);
       preLineRect.current.push(targetOriginalData);
     }

@@ -82,9 +82,7 @@ export default function Canvas({ renderId }: { renderId: string }) {
       onViewMove={onViewMove}
       onViewZoom={onViewZoom}
       onTap={onTap}
-      onAppChange={(app) => {
-        setApp(app);
-      }}
+      onAppChange={setApp}
     />
   );
 }

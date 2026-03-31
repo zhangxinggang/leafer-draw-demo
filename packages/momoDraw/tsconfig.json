@@ -4,9 +4,8 @@
     "baseUrl": ".",
     "noEmit": true,
     "paths": {
-      "@momo/leafer-xpath-editor": ["../leaferXPathEditor/src/index.ts"],
-      "@momo/leafer-xpath-editor/*": ["../leaferXPathEditor/src/*"],
-      "@momo-editor/*": ["../../apps/momoEditor/src/*"]
+      "@momo/utils": ["../momoUtils/src/index.ts"],
+      "@momo/utils/*": ["../momoUtils/src/*"]
     }
   },
   "include": ["src/**/*"]

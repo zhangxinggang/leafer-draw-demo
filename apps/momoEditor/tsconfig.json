@@ -7,8 +7,6 @@
     "paths": {
       "@momo/leafer-draw": ["../../packages/momoDraw/src/index.ts"],
       "@momo/leafer-draw/*": ["../../packages/momoDraw/src/*"],
-      "@momo/leafer-xpath-editor": ["../../packages/leaferXPathEditor/src/index.ts"],
-      "@momo/leafer-xpath-editor/*": ["../../packages/leaferXPathEditor/src/*"],
       "@momo-editor/*": ["./src/*"]
     }
   },

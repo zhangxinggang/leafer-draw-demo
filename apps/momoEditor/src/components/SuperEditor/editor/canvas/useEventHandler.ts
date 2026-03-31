@@ -7,8 +7,8 @@ import {
 } from '@leafer-in/editor';
 import { generateCmp } from '@momo/leafer-draw/generator';
 import { Cmp, CmpType, PathCmp } from '@momo/leafer-draw/types/cmp';
-import { PathEditorEvent } from '@momo/leafer-xpath-editor';
 import { IPointData, IUI, MoveEvent, PointerEvent, UI, ZoomEvent } from 'leafer-ui';
+import { PathEditorEvent } from 'leafer-x-path-editor';
 import { debounce } from 'lodash-es';
 import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';

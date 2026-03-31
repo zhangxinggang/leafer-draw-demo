@@ -1,10 +1,9 @@
-import { cmpRender } from '@momo/leafer-draw/render';
 import { RenderType } from '@momo/leafer-draw/types/cmp';
 import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import useBusinessStore from '../../store/business';
 import useCanvasStore from '../../store/canvas';
 import useModelStore from '../../store/model';
+import { renderView } from './draw';
 
 export default function useRender() {
   const { app, genCmp, tempReminderCmps } = useCanvasStore(
@@ -27,27 +26,24 @@ export default function useRender() {
   useEffect(() => {
     if (!app?.tree || haveInitRef.current || !initialized) return;
     haveInitRef.current = true;
-    const busData = useBusinessStore.getState();
-    cmpRender({ cmps, type: RenderType.ADD, busData });
+    renderView({ cmps, type: RenderType.ADD });
   }, [app, initialized]);
 
   useEffect(() => {
     if (!app?.tree || !genCmp) return;
     const cmp = app.tree.findId(genCmp.id);
-    const busData = useBusinessStore.getState();
-    cmpRender({ cmps: [genCmp], type: cmp ? RenderType.UPDATE : RenderType.ADD, busData });
+    renderView({ cmps: [genCmp], type: cmp ? RenderType.UPDATE : RenderType.ADD });
   }, [app, genCmp]);
 
   useEffect(() => {
     if (!app?.tree) return;
-    const busData = useBusinessStore.getState();
     if (tempReminderCmps.length) {
       tempReminderCmps.forEach((item) => {
         const cmp = app.tree.findId(item.id);
-        cmpRender({ cmps: [item], type: cmp ? RenderType.UPDATE : RenderType.ADD, busData });
+        renderView({ cmps: [item], type: cmp ? RenderType.UPDATE : RenderType.ADD });
       });
     } else {
-      cmpRender({ cmps: prevTempReminderCmpsRef.current, type: RenderType.DELETE, busData });
+      renderView({ cmps: prevTempReminderCmpsRef.current, type: RenderType.DELETE });
     }
     prevTempReminderCmpsRef.current = tempReminderCmps;
   }, [app, tempReminderCmps]);

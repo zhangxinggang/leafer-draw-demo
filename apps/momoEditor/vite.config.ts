@@ -20,10 +20,6 @@ export default defineConfig({
         replacement: path.resolve(monoRoot, 'packages/momoDraw/src') + '$1',
       },
       {
-        find: /^@momo\/leafer-xpath-editor(\/.*)?$/,
-        replacement: path.resolve(monoRoot, 'packages/leaferXPathEditor/src') + '$1',
-      },
-      {
         find: /^@momo-editor\/(.*)$/,
         replacement: path.resolve(__dirname, 'src') + '/$1',
       },

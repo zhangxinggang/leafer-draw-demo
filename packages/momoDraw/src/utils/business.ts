@@ -5,10 +5,10 @@ import { getApp } from './leafer';
 import { getBoundingMaxMinTotal } from './utils';
 
 const getExtraRemoveIds = (ids: string[]) => {
-  if (!window.spuEditorCmpRenderMap) return ids;
+  if (!globalThis.spuEditorCmpRenderMap) return ids;
   const lineIds: string[] = [];
   ids.forEach((id) => {
-    const ele = window.spuEditorCmpRenderMap.get(id);
+    const ele = globalThis.spuEditorCmpRenderMap.get(id);
     const isRectLine = ele?.backendData.type === CmpType.RectLine;
     const connectorId = ele?.backendData.connectorId;
     if (isRectLine && connectorId) {
