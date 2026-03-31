@@ -1,15 +1,43 @@
 import { CmpType, generateCmp } from '@momo/leafer-draw';
-import { getStorage } from '../store/engine';
-import { MODELSTOREKEY } from '../utils/storage';
+import type { LargeRectGridScene } from '@momo/leafer-draw/types/largeScene';
+import {
+  LARGE_SCENE_THRESHOLD,
+  createLargeRectGridScene,
+} from '@momo/leafer-draw/types/largeScene';
 
 interface Props {
   xCount: number;
   yCount: number;
   width?: number;
   height?: number;
+  textLines?: string[];
 }
 
-const generateRect = ({ xCount, yCount, width = 50, height = 50 }: Props) => {
+export type RectGenerationResult =
+  | { mode: 'elements'; cmps: any[] }
+  | { mode: 'large'; scene: LargeRectGridScene };
+
+const generateRect = ({
+  xCount,
+  yCount,
+  width = 100,
+  height = 100,
+  textLines = [],
+}: Props): RectGenerationResult => {
+  const totalCount = xCount * yCount;
+  if (totalCount >= LARGE_SCENE_THRESHOLD) {
+    return {
+      mode: 'large',
+      scene: createLargeRectGridScene({
+        columns: xCount,
+        rows: yCount,
+        cellWidth: width,
+        cellHeight: height,
+        textLines,
+      }),
+    };
+  }
+
   const rectComps: any[] = [];
   for (let i = 0; i < xCount; i++) {
     for (let j = 0; j < yCount; j++) {
@@ -33,12 +61,7 @@ const generateRect = ({ xCount, yCount, width = 50, height = 50 }: Props) => {
       rectComps.push(rectComp);
     }
   }
-  const storage = getStorage(MODELSTOREKEY);
-  storage?.setItem(
-    MODELSTOREKEY,
-    JSON.stringify({ state: { cmps: rectComps, selectCmpIds: [], zoomLayer: {} }, version: 0 }),
-  );
-  return rectComps;
+  return { mode: 'elements', cmps: rectComps };
 };
 
 export default generateRect;

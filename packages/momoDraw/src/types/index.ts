@@ -1,4 +1,5 @@
 export * from './cmp';
+export * from './largeScene';
 export * from './operation';
 
 export type AnyObj = Record<string, any>;

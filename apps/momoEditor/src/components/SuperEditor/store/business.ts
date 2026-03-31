@@ -1,4 +1,4 @@
-import { RenderType } from '@momo/leafer-draw';
+import { RenderType, IBusinessStore } from '@momo/leafer-draw';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { BUSINESSSTOREKEY } from '../utils/storage';
@@ -8,38 +8,8 @@ export enum BusinessColorKey {
   ConnGroup = 'connGroupColors',
 }
 
-export interface BusinessStore {
-  businessConf: {
-    unitWidth: number;
-    unitHeight: number;
-    rectWidth: number;
-    rectHeight: number;
-    rectGroupName: string;
-    rectGroupLimitArea: number;
-    rectGroupLimitWidth: number;
-    rectGroupLimitHeight: number;
-    connGroupLimit: number;
-    connGroupLimitNum: number;
-  };
-  businessStyle: {
-    tempReminderColor: string;
-    rectGroupOption: {
-      overloadColor: string;
-      fill: string;
-    };
-    connGroupColors: string[];
-    rectGroupColors: string[];
-    rectBorderColor: string;
-  };
-  freeRouting: boolean;
-  rectGroupIds: string[];
-  updateRectGroupIds: (params: string[], type: RenderType) => void;
-  updateBusinessConf: (conf: Partial<BusinessStore['businessConf']>) => void;
-  updateBusinessStyle: (style: Partial<BusinessStore['businessStyle']>) => void;
-}
-
 // rectGroupColors, connGroupColors 两个数组长度必须相等
-const useBusinessStore = create<BusinessStore>()(
+const useBusinessStore = create<IBusinessStore>()(
   persist(
     (set, get) => ({
       businessConf: {
@@ -101,12 +71,12 @@ const useBusinessStore = create<BusinessStore>()(
           return { ...state, rectGroupIds: newIds };
         });
       },
-      updateBusinessConf: (conf: Partial<BusinessStore['businessConf']>) => {
+      updateBusinessConf: (conf: Partial<IBusinessStore['businessConf']>) => {
         set((state) => ({
           businessConf: { ...state.businessConf, ...conf },
         }));
       },
-      updateBusinessStyle: (style: Partial<BusinessStore['businessStyle']>) => {
+      updateBusinessStyle: (style: Partial<IBusinessStore['businessStyle']>) => {
         set((state) => ({
           businessStyle: { ...state.businessStyle, ...style },
         }));

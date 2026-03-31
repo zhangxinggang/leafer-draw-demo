@@ -7,6 +7,20 @@
   height: 100%;
   box-sizing: border-box;
 
+  .leafer-layer {
+    position: absolute !important;
+    inset: 0;
+    z-index: 1;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden;
+
+    > canvas {
+      position: absolute !important;
+      inset: 0;
+    }
+  }
+
   .dark-mode & {
     background: #1a1a1a;
   }

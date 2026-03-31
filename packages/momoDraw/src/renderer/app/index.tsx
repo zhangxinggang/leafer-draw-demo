@@ -10,10 +10,12 @@ import '@leafer-in/find';
 import '@leafer-in/text-editor';
 import '@leafer-in/view';
 import '@leafer-in/viewport';
-import { PathEditorEvent } from '@momo/leafer-xpath-editor';
-import { IEditorConfig, App as LeaferApp, MoveEvent, PointerEvent, UI, ZoomEvent } from 'leafer-ui';
+import type { IEditorConfig } from 'leafer-ui';
+import { App as LeaferApp, MoveEvent, PointerEvent, ZoomEvent } from 'leafer-ui';
 import { Snap } from 'leafer-x-easy-snap';
-import React, { PropsWithChildren, forwardRef, useEffect, useRef } from 'react';
+import { PathEditorEvent } from 'leafer-x-path-editor';
+import type { PropsWithChildren } from 'react';
+import React, { forwardRef, useEffect, useRef } from 'react';
 import { usePrevious } from 'react-use';
 import { setApp } from '../../utils/leafer';
 import { LeaferAppContext } from '../context';
@@ -44,7 +46,6 @@ export interface AppProps {
   onRotateEnd?: (e: EditorRotateEvent) => void;
   onSelect?: (e: EditorEvent) => void;
   onTap?: (e: PointerEvent) => void;
-  onAppChange?: (app: LeaferApp) => void;
   onViewMove?: (e: MoveEvent) => void;
   onViewZoom?: (e: ZoomEvent) => void;
   onPathChange?: (e: PathEditorEvent) => void;
@@ -52,8 +53,8 @@ export interface AppProps {
 }
 
 export interface AppRef {
-  select: (targets: UI[]) => void;
-  hover: (target: UI) => void;
+  select: (targets: Parameters<Editor['select']>[0]) => void;
+  hover: (target: unknown) => void;
   cancel: () => void;
   getApp: () => LeaferApp;
 }
@@ -69,7 +70,6 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
     onScale,
     onPointMove,
     onSelect,
-    onAppChange,
     onTap,
     onViewZoom,
     onViewMove,
@@ -83,10 +83,17 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
     rulerVisible = true,
     darkMode = false,
     editorConf = {},
+    onAppChange,
   } = props;
   const moveStateRef = useRef(null);
   const scaleStateRef = useRef(null);
   const rotateStateRef = useRef(null);
+  const editorConfRef = useRef(editorConf);
+  editorConfRef.current = editorConf;
+  const editorConfSignature = JSON.stringify(editorConf);
+  const zoomX = zoomLayer?.x;
+  const zoomY = zoomLayer?.y;
+  const zoomScale = zoomLayer?.scale;
   const preSelectCmpIds = usePrevious(selectCmpIds);
   const { initRuler } = useRuler({ rulerVisible, darkMode });
 
@@ -111,12 +118,10 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
       view: document.getElementById(renderId),
       fill: canvasBackgroundColor,
       tree: { type: 'design' },
+      move: { drag: true },
       // editor: {
       //   bright: true,
       //   dimOthers: true,
-      // },
-      // move: {
-      //   dragAnimate: true,
       // },
     });
     app.sky = app.addLeafer();
@@ -155,7 +160,6 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
 
     app.on(PointerEvent.MOVE, onPointMove);
 
-    onAppChange?.(app);
     const snap = new Snap(app);
     // 启用
     snap.enable(true);
@@ -163,15 +167,16 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
     initRuler(app);
     // 设置全局 app 引用
     setApp(app);
+    onAppChange?.(app);
     return app;
   });
 
   useEffect(() => {
     if (!leaferApp) return;
-    leaferApp.editor.config = { ...leaferApp.editor.config, ...editorConf };
+    leaferApp.editor.config = { ...leaferApp.editor.config, ...editorConfRef.current };
     leaferApp.editor.update();
-    if (leaferApp.config.move) leaferApp.config.move.drag = !leaferApp.editor['visible'];
-  }, [JSON.stringify(editorConf), leaferApp]);
+    if (leaferApp.config.move) leaferApp.config.move.drag = !leaferApp.editor.visible;
+  }, [editorConfSignature, leaferApp]);
 
   useEffect(() => {
     if (!leaferApp) return;
@@ -183,31 +188,28 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
     return () => {
       leaferApp?.destroy();
       // 清理全局 app 引用
-      if (window.spuEditorApp === leaferApp) {
-        window.spuEditorApp = null;
+      if (globalThis.spuEditorApp === leaferApp) {
+        globalThis.spuEditorApp = null;
       }
     };
   }, [leaferApp]);
 
   useEffect(() => {
     if (!leaferApp) return;
-    const { x, y } = zoomLayer || {};
-
-    if (x !== undefined) {
-      leaferApp.tree.x = x;
+    if (zoomX !== undefined) {
+      leaferApp.tree.x = zoomX;
     }
-    if (y !== undefined) {
-      leaferApp.tree.y = y;
+    if (zoomY !== undefined) {
+      leaferApp.tree.y = zoomY;
     }
-  }, [leaferApp, zoomLayer?.x, zoomLayer?.y]);
+  }, [leaferApp, zoomX, zoomY]);
 
   useEffect(() => {
     if (!leaferApp) return;
-    const { scale } = zoomLayer || {};
-    if (scale !== undefined) {
-      leaferApp.tree.zoomLayer.scaleX = leaferApp.tree.zoomLayer.scaleY = scale;
+    if (zoomScale !== undefined) {
+      leaferApp.tree.zoomLayer.scaleX = leaferApp.tree.zoomLayer.scaleY = zoomScale;
     }
-  }, [leaferApp, zoomLayer?.scale]);
+  }, [leaferApp, zoomScale]);
 
   useEffect(() => {
     if (!leaferApp) return;
@@ -220,17 +222,17 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
 
     const selectedUI = selectCmpIds.map((id) => leaferApp.tree.findId(id)).filter((o) => !!o);
 
-    leaferApp.editor.select(selectedUI);
-  }, [selectCmpIds, leaferApp]);
+    leaferApp.editor.select(selectedUI as Parameters<Editor['select']>[0]);
+  }, [selectCmpIds, leaferApp, preSelectCmpIds]);
 
   // 暴露 ref 方法
   React.useImperativeHandle(ref, () => ({
-    select: (targets: UI[]) => {
+    select: (targets: Parameters<Editor['select']>[0]) => {
       if (leaferApp) {
         leaferApp.editor.select(targets);
       }
     },
-    hover: (target: UI) => {
+    hover: () => {
       // hover 方法可能不存在，暂时注释
       // if (leaferApp && leaferApp.editor.hover) {
       //   leaferApp.editor.hover(target);

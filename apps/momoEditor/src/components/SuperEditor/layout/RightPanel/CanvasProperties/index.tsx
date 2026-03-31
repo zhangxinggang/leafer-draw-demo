@@ -1,15 +1,24 @@
-import { Button, Form, Input, InputNumber, Switch } from 'antd';
+import { Button, Form, Input, InputNumber, Space, Switch, message } from 'antd';
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import ColorPicker from '../../../../ColorPicker';
 import generateRect from '../../../mock/generateRect';
+import useBusinessStore from '../../../store/business';
 import useCanvasStore from '../../../store/canvas';
+import useModelStore from '../../../store/model';
 import useToolbarStore, { ToolBarState } from '../../../store/toolbar';
 import styles from './index.module.less';
 
 export default function CanvasProperties() {
   const [xCount, setXCount] = useState(50);
   const [yCount, setYCount] = useState(50);
+  const { replaceCmps, setLargeScene } = useModelStore(
+    useShallow((state) => ({
+      replaceCmps: state.replaceCmps,
+      setLargeScene: state.setLargeScene,
+    })),
+  );
+  const businessConf = useBusinessStore((state) => state.businessConf);
   const { state: toolbarState } = useToolbarStore();
   const {
     canvasName,
@@ -66,6 +75,7 @@ export default function CanvasProperties() {
                 <InputNumber
                   addonAfter='行'
                   min={1}
+                  max={1000}
                   defaultValue={50}
                   value={xCount}
                   onChange={(value) => setXCount(value)}
@@ -73,18 +83,50 @@ export default function CanvasProperties() {
                 <InputNumber
                   addonAfter='列'
                   min={1}
+                  max={1000}
                   defaultValue={50}
                   value={yCount}
                   onChange={(value) => setYCount(value)}
                 />
               </div>
-              <Button
-                type='primary'
-                onClick={() => {
-                  generateRect({ xCount, yCount });
-                }}>
-                生成数据
-              </Button>
+              <Space wrap>
+                <Button
+                  onClick={() => {
+                    setXCount(1000);
+                    setYCount(1000);
+                  }}>
+                  100万个箱体
+                </Button>
+                <Button
+                  type='primary'
+                  onClick={() => {
+                    const result = generateRect({
+                      xCount,
+                      yCount,
+                      width: businessConf.rectWidth,
+                      height: businessConf.rectHeight,
+                      textLines: [
+                        businessConf.rectGroupName,
+                        `宽：${businessConf.rectWidth}`,
+                        `高：${businessConf.rectHeight}`,
+                        `${businessConf.rectWidth / businessConf.unitWidth}宽${
+                          businessConf.rectHeight / businessConf.unitHeight
+                        }高`,
+                      ],
+                    });
+                    if (result.mode === 'large') {
+                      setLargeScene(result.scene);
+                      message.success(
+                        `已启用百万级批渲染：${result.scene.columns * result.scene.rows} 个箱体`,
+                      );
+                    } else {
+                      replaceCmps(result.cmps);
+                      message.success(`已生成 ${result.cmps.length} 个箱体`);
+                    }
+                  }}>
+                  生成数据
+                </Button>
+              </Space>
             </div>
           </Form.Item>
         )}

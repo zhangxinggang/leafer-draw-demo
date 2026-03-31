@@ -1,8 +1,10 @@
 import { generateCmp } from '@momo/leafer-draw/generator';
-import { CmpType, ImageCmp, TextCmp } from '@momo/leafer-draw/types/cmp';
+import type { ImageCmp, TextCmp } from '@momo/leafer-draw/types/cmp';
+import { CmpType } from '@momo/leafer-draw/types/cmp';
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Canvas from '../../editor/canvas';
+import LargeSceneLayer from '../../editor/largeScene';
 import useCanvasStore from '../../store/canvas';
 import useModelStore from '../../store/model';
 import styles from './index.module.less';
@@ -10,6 +12,7 @@ import styles from './index.module.less';
 export default function CanvasArea() {
   const [isInit, setIsInit] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const { app } = useCanvasStore(
     useShallow((state) => ({
       app: state.app,
@@ -24,8 +27,8 @@ export default function CanvasArea() {
 
   // 处理拖拽添加元素
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !app) return;
+    const canvasContainer = containerRef.current;
+    if (!canvasContainer || !app) return;
 
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
@@ -44,7 +47,7 @@ export default function CanvasArea() {
       const imageSrc = e.dataTransfer?.getData('imageSrc');
 
       // 计算画布坐标
-      const rect = container.getBoundingClientRect();
+      const rect = canvasContainer.getBoundingClientRect();
       const { x: viewX = 0, y: viewY = 0, scale = 1 } = zoomLayer || {};
       const clientX = e.clientX - rect.left;
       const clientY = e.clientY - rect.top;
@@ -107,22 +110,25 @@ export default function CanvasArea() {
       }
     };
 
-    container.addEventListener('dragover', handleDragOver);
-    container.addEventListener('drop', handleDrop);
+    canvasContainer.addEventListener('dragover', handleDragOver);
+    canvasContainer.addEventListener('drop', handleDrop);
 
     return () => {
-      container.removeEventListener('dragover', handleDragOver);
-      container.removeEventListener('drop', handleDrop);
+      canvasContainer.removeEventListener('dragover', handleDragOver);
+      canvasContainer.removeEventListener('drop', handleDrop);
     };
   }, [app, addCmps, zoomLayer]);
 
   useEffect(() => {
+    setContainer(containerRef.current);
     setIsInit(true);
   }, []);
 
-  const renderId = 'super-editor-canvas-area';
+  const renderId = 'super-editor-leafer-layer';
   return (
-    <div ref={containerRef} id={renderId} className={styles['canvas-area']}>
+    <div ref={containerRef} className={styles['canvas-area']}>
+      <LargeSceneLayer container={container} />
+      <div id={renderId} className={styles['leafer-layer']} />
       {isInit && <Canvas renderId={renderId} />}
     </div>
   );

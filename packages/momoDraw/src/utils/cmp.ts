@@ -18,17 +18,17 @@ const pureObj = (obj: AnyObj) => {
 };
 
 const initCmpRenderMap = () => {
-  if (!window.spuEditorCmpRenderMap) {
-    window.spuEditorCmpRenderMap = new Map();
+  if (!globalThis.spuEditorCmpRenderMap) {
+    globalThis.spuEditorCmpRenderMap = new Map();
   }
 };
 
 const getCmpMaps = () => {
-  return window.spuEditorCmpRenderMap;
+  return globalThis.spuEditorCmpRenderMap;
 };
 
-const getCmps = () => {
-  return Array.from(window.spuEditorCmpRenderMap.values());
+const getCmps = (): Cmp[] => {
+  return Array.from(globalThis.spuEditorCmpRenderMap.values());
 };
 
 const setZindexObj = (zIndex: number = 0) => {
@@ -43,23 +43,23 @@ const getZindexObj = () => {
 const setMaps = (cmps: Cmp[]) => {
   initCmpRenderMap();
   cmps.forEach((cmp) => {
-    window.spuEditorCmpRenderMap.set(cmp.id, cmp);
+    globalThis.spuEditorCmpRenderMap.set(cmp.id, cmp);
     setZindexObj(cmp.zIndex);
   });
 };
 
 const getCmpByIds = (ids: string[]) => {
-  return ids.map((id) => window.spuEditorCmpRenderMap.get(id));
+  return ids.map((id) => globalThis.spuEditorCmpRenderMap.get(id));
 };
 
 const updateMaps = (cmps: CmpNeedId[]) => {
   initCmpRenderMap();
   cmps.forEach((cmp) => {
-    const oldCmp = window.spuEditorCmpRenderMap.get(cmp.id) || ({} as Cmp);
+    const oldCmp = globalThis.spuEditorCmpRenderMap.get(cmp.id) || ({} as Cmp);
     const oldBackendData = oldCmp.backendData || {};
     const newBackendData = cmp.backendData || {};
     const newOptions = pureObj({ ...oldCmp, ...cmp });
-    window.spuEditorCmpRenderMap.set(cmp.id, {
+    globalThis.spuEditorCmpRenderMap.set(cmp.id, {
       ...newOptions,
       backendData: pureObj({ ...oldBackendData, ...newBackendData }),
     } as Cmp);
@@ -68,11 +68,11 @@ const updateMaps = (cmps: CmpNeedId[]) => {
 };
 
 const deleteMapsByIds = (ids: string[]) => {
-  if (!window.spuEditorCmpRenderMap) return;
+  if (!globalThis.spuEditorCmpRenderMap) return;
   ids.forEach((id) => {
-    const deleteCmp = window.spuEditorCmpRenderMap.get(id);
+    const deleteCmp = globalThis.spuEditorCmpRenderMap.get(id);
     onBusDeleteCmp(deleteCmp);
-    window.spuEditorCmpRenderMap.delete(id);
+    globalThis.spuEditorCmpRenderMap.delete(id);
   });
 };
 

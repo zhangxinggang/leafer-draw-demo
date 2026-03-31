@@ -323,3 +323,9 @@ npm run build
 1. **CSS Module 最佳实践**：使用 CSS Module 进行样式隔离，避免类名冲突
 2. **classnames 库使用**：使用 classnames 库处理条件 className，提高代码可读性
 3. **全局样式管理**：合理使用全局样式，仅用于基础样式设置
+
+# 其他
+
+## SKILL
+
+地址：https://modelscope.cn/skills/@cyangzhou/ppt/files

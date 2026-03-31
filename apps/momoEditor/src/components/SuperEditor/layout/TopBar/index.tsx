@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { AlignType } from '@momo/leafer-draw';
+import { getLargeSceneBounds } from '@momo/leafer-draw/types/largeScene';
 import { Button, Dropdown, Form, InputNumber, Modal, Segmented, Switch, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -7,16 +8,18 @@ import ColorPicker from '../../../ColorPicker';
 import useCanvasStore from '../../store/canvas';
 import useModelStore from '../../store/model';
 import useToolbarStore, { ToolBarState } from '../../store/toolbar';
+import { captureLargeSceneViewport, downloadLargeSceneSvg } from '../../utils/largeSceneExport';
 import styles from './index.module.less';
 
 export default function TopBar() {
-  const { state, setState } = useToolbarStore();
-  const { selectCmpIds, alignCmps, updateZoomLayer, zoomLayer } = useModelStore(
+  const { state: toolbarState, setState } = useToolbarStore();
+  const { selectCmpIds, alignCmps, updateZoomLayer, zoomLayer, largeScene } = useModelStore(
     useShallow((state) => ({
       selectCmpIds: state.selectCmpIds,
       alignCmps: state.alignCmps,
       updateZoomLayer: state.updateZoomLayer,
       zoomLayer: state.zoomLayer,
+      largeScene: state.largeScene,
     })),
   );
   const { undo, redo, pastStates, futureStates } = useModelStore(
@@ -44,7 +47,7 @@ export default function TopBar() {
   const enabledBackground = Form.useWatch(['background'], form);
 
   const scale = zoomLayer?.scale || 1;
-  const scaleLabel = Math.round(scale * 100);
+  const scaleLabel = scale < 0.1 ? Number((scale * 100).toFixed(2)) : Math.round(scale * 100);
   const [scaleInputValue, setScaleInputValue] = useState<string>(scaleLabel.toString());
   const canAlign = selectCmpIds.length >= 2;
 
@@ -64,16 +67,31 @@ export default function TopBar() {
 
   // 处理缩放
   const handleZoom = (type: 'plus' | 'minus' | 'reset' | 'fit') => {
+    const currentScale = largeScene ? app?.tree?.zoomLayer?.scaleX || scale : scale;
     if (type === 'plus') {
-      if (scale >= 2.5) return;
-      updateZoomLayer({ scale: scale + 0.1 });
+      if (currentScale >= 2.5) return;
+      updateZoomLayer({
+        scale: largeScene ? Math.min(2.5, currentScale * 1.5) : currentScale + 0.1,
+      });
     } else if (type === 'minus') {
-      if (scale <= 0.1) return;
-      updateZoomLayer({ scale: scale - 0.1 });
+      const minScale = largeScene ? 0.0001 : 0.1;
+      if (currentScale <= minScale) return;
+      updateZoomLayer({
+        scale: largeScene ? Math.max(minScale, currentScale / 1.5) : currentScale - 0.1,
+      });
     } else if (type === 'reset') {
       updateZoomLayer({ scale: 1, x: 0, y: 0 });
     } else if (type === 'fit') {
-      app.tree.zoom('fit');
+      if (largeScene) {
+        app.tree.zoom(getLargeSceneBounds(largeScene), 30);
+      } else {
+        app.tree.zoom('fit');
+      }
+      updateZoomLayer({
+        x: app.tree.zoomLayer.x,
+        y: app.tree.zoomLayer.y,
+        scale: app.tree.zoomLayer.scaleX,
+      });
     }
   };
 
@@ -89,6 +107,18 @@ export default function TopBar() {
     message.success('导出成功');
   };
 
+  const handleExportLargeScene = () => {
+    if (!largeScene) return;
+    const bgColor = enabledBackground ? backgroundColor : 'transparent';
+    downloadLargeSceneSvg(
+      largeScene,
+      bgColor,
+      `${useCanvasStore.getState().canvasName || '画布'}-超清`,
+    );
+    setExportImageModalOpen(false);
+    message.success('超清 SVG 已导出，可任意放大查看文字');
+  };
+
   // 导出JSON
   const handleExportJson = () => {
     const modelState = useModelStore.getState();
@@ -96,6 +126,7 @@ export default function TopBar() {
     const exportData = {
       model: {
         cmps: modelState.cmps,
+        largeScene: modelState.largeScene,
         zoomLayer: modelState.zoomLayer,
       },
       canvas: {
@@ -130,10 +161,10 @@ export default function TopBar() {
           const jsonStr = event.target?.result as string;
           const data = JSON.parse(jsonStr);
           if (data.model) {
-            useModelStore.setState({
-              cmps: data.model.cmps || [],
-              zoomLayer: data.model.zoomLayer || {},
-            });
+            const modelStore = useModelStore.getState();
+            if (data.model.largeScene) modelStore.setLargeScene(data.model.largeScene);
+            else modelStore.replaceCmps(data.model.cmps || []);
+            useModelStore.setState({ zoomLayer: data.model.zoomLayer || {} });
           }
           if (data.canvas) {
             useCanvasStore.setState({
@@ -160,7 +191,12 @@ export default function TopBar() {
 
   // 预览图片
   useEffect(() => {
-    if (!exportImageModalOpen || !app) return;
+    if (!exportImageModalOpen) return;
+    if (largeScene) {
+      const previewTimer = window.setTimeout(() => setImage(captureLargeSceneViewport()), 80);
+      return () => window.clearTimeout(previewTimer);
+    }
+    if (!app) return;
     let bgColor = backgroundColor;
     if (!enabledBackground) {
       bgColor = 'transparent';
@@ -168,7 +204,7 @@ export default function TopBar() {
     app.export('png', { fill: bgColor }).then((result) => {
       setImage(result.data);
     });
-  }, [exportImageModalOpen, app, backgroundColor, enabledBackground]);
+  }, [exportImageModalOpen, app, backgroundColor, enabledBackground, largeScene]);
 
   const exportImageMenuItems = [
     {
@@ -201,13 +237,13 @@ export default function TopBar() {
         <div className={styles['top-bar-left']}>
           {/* 选中和移动 */}
           <Button
-            type={state === ToolBarState.Select ? 'primary' : 'default'}
+            type={toolbarState === ToolBarState.Select ? 'primary' : 'default'}
             icon={<Icon icon='mdi:cursor-pointer' />}
             onClick={() => setState(ToolBarState.Select)}>
             选中
           </Button>
           <Button
-            type={state === ToolBarState.Dragger ? 'primary' : 'default'}
+            type={toolbarState === ToolBarState.Dragger ? 'primary' : 'default'}
             icon={<Icon icon='mdi:drag' />}
             onClick={() => setState(ToolBarState.Dragger)}>
             移动
@@ -236,9 +272,10 @@ export default function TopBar() {
           {/* 缩放 */}
           <Button icon={<Icon icon='mdi:magnify-minus' />} onClick={() => handleZoom('minus')} />
           <InputNumber
-            value={parseInt(scaleInputValue)}
+            value={Number(scaleInputValue)}
             onChange={(value) => {
-              if (value !== null && value >= 10 && value <= 250) {
+              const minScalePercent = largeScene ? 0.01 : 10;
+              if (value !== null && value >= minScalePercent && value <= 250) {
                 const newScale = value / 100;
                 updateZoomLayer({ scale: newScale });
               }
@@ -246,12 +283,12 @@ export default function TopBar() {
             onBlur={() => {
               setScaleInputValue(scaleLabel.toString());
             }}
-            min={10}
+            min={largeScene ? 0.01 : 10}
             max={250}
             style={{ width: 60 }}
             controls={false}
             formatter={(value) => `${value}%`}
-            parser={(value) => parseInt(value?.replace('%', '') || '100')}
+            parser={(value) => parseFloat(value?.replace('%', '') || '100')}
           />
           <Button icon={<Icon icon='mdi:magnify-plus' />} onClick={() => handleZoom('plus')} />
           <Button
@@ -360,18 +397,29 @@ export default function TopBar() {
             </Form>
 
             <div className={styles['export-operator']}>
-              <Button
-                icon={<Icon icon='mdi:file-image' />}
-                type='primary'
-                onClick={() => handleExportImage('png')}>
-                PNG
-              </Button>
-              <Button
-                icon={<Icon icon='mdi:file-image' />}
-                type='primary'
-                onClick={() => handleExportImage('jpg')}>
-                JPG
-              </Button>
+              {largeScene ? (
+                <Button
+                  icon={<Icon icon='mdi:file-image' />}
+                  type='primary'
+                  onClick={handleExportLargeScene}>
+                  SVG 超清
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    icon={<Icon icon='mdi:file-image' />}
+                    type='primary'
+                    onClick={() => handleExportImage('png')}>
+                    PNG
+                  </Button>
+                  <Button
+                    icon={<Icon icon='mdi:file-image' />}
+                    type='primary'
+                    onClick={() => handleExportImage('jpg')}>
+                    JPG
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,7 +1,8 @@
-import { AlignType, AnyObj } from '@momo/leafer-draw';
-import { cmpRender } from '@momo/leafer-draw/render';
-import { IZoomLayer } from '@momo/leafer-draw/renderer/app';
-import { Cmp, CmpNeedId, RenderType, UndoRedoState } from '@momo/leafer-draw/types/cmp';
+import type { AlignType, AnyObj } from '@momo/leafer-draw';
+import type { IZoomLayer } from '@momo/leafer-draw/renderer/app';
+import type { Cmp, CmpNeedId, UndoRedoState } from '@momo/leafer-draw/types/cmp';
+import { RenderType } from '@momo/leafer-draw/types/cmp';
+import type { LargeRectGridScene } from '@momo/leafer-draw/types/largeScene';
 import { getExtraRemoveIds } from '@momo/leafer-draw/utils/business';
 import {
   getCmpByIds,
@@ -13,8 +14,8 @@ import {
 import { alignElements, uuid } from '@momo/leafer-draw/utils/utils';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { renderView } from '../editor/canvas/draw';
 import { MODELSTOREKEY } from '../utils/storage';
-import useBusinessStore from './business';
 import { getStorage } from './engine';
 
 type SetModelStateData = {
@@ -24,12 +25,15 @@ type SetModelStateData = {
 export interface ModelStore {
   initialized: boolean;
   cmps: Cmp[];
+  largeScene: LargeRectGridScene | null;
   selectCmpIds: string[];
   zoomLayer: IZoomLayer;
   // 撤销/重做相关
   pastStates: UndoRedoState[];
   futureStates: UndoRedoState[];
   setModelState: (data: SetModelStateData) => void;
+  replaceCmps: (cmps: Cmp[]) => void;
+  setLargeScene: (scene: LargeRectGridScene | null) => void;
   addCmps: (cmps: Cmp[], noRender?: boolean) => void;
   copyCmpByIds: (ids: string[]) => void;
   updateCmps: (cmp: CmpNeedId[]) => void;
@@ -50,7 +54,25 @@ export interface ModelStore {
 }
 
 const MAX_HISTORY_LENGTH = 50;
+const MAX_SAFE_PERSISTED_MODEL_BYTES = 32 * 1024 * 1024;
 let isUndoRedoInProgress = false;
+
+const modelStorage = {
+  getItem: async (key: string) => {
+    const storage = getStorage(MODELSTOREKEY);
+    const value = await storage?.getItem(key);
+    if (typeof value === 'string' && value.length > MAX_SAFE_PERSISTED_MODEL_BYTES) {
+      await storage?.removeItem(key);
+      console.warn(
+        `已跳过并清理 ${Math.round(value.length / 1024 / 1024)} MiB 的旧版超大画布缓存，避免页面启动崩溃`,
+      );
+      return null;
+    }
+    return value ?? null;
+  },
+  setItem: (key: string, value: string) => getStorage(MODELSTOREKEY)?.setItem(key, value),
+  removeItem: (key: string) => getStorage(MODELSTOREKEY)?.removeItem(key),
+};
 
 /**
  * 记录操作到历史记录并返回更新后的状态
@@ -80,6 +102,7 @@ const useModelStore = create<ModelStore>()(
     (set, get) => ({
       initialized: false,
       cmps: [],
+      largeScene: null,
       selectCmpIds: [],
       zoomLayer: {},
       pastStates: [],
@@ -89,13 +112,42 @@ const useModelStore = create<ModelStore>()(
           return { ...state, ...(data as Partial<ModelStore>) };
         });
       },
+      replaceCmps: (cmps: Cmp[]) => {
+        const currentState = get();
+        if (currentState.cmps.length) {
+          renderView({ cmps: currentState.cmps, type: RenderType.DELETE });
+        }
+        if (cmps.length) {
+          renderView({ cmps, type: RenderType.ADD });
+        }
+        set({
+          cmps,
+          largeScene: null,
+          selectCmpIds: [],
+          pastStates: [],
+          futureStates: [],
+        });
+      },
+      setLargeScene: (largeScene: LargeRectGridScene | null) => {
+        const currentState = get();
+        if (currentState.cmps.length) {
+          renderView({ cmps: currentState.cmps, type: RenderType.DELETE });
+        }
+        set({
+          cmps: [],
+          largeScene,
+          selectCmpIds: [],
+          zoomLayer: {},
+          pastStates: [],
+          futureStates: [],
+        });
+      },
       addCmps: (cmps: Cmp[], noRender: boolean) => {
         return set((state) => {
           const renderType = RenderType.ADD;
           const newCmps = [...state.cmps, ...cmps];
           if (!noRender) {
-            const busData = useBusinessStore.getState();
-            cmpRender({ cmps, type: renderType, busData });
+            renderView({ cmps, type: renderType });
           }
           // 记录 ADD 操作
           if (!isUndoRedoInProgress) {
@@ -131,8 +183,7 @@ const useModelStore = create<ModelStore>()(
             return { ...oldCmp, ...cmp };
           });
           if (!isUpdate) return state;
-          const busData = useBusinessStore.getState();
-          cmpRender({ cmps: upcmps, type: renderType, busData });
+          renderView({ cmps: upcmps, type: renderType });
           const allNewCmps = getCmps();
           // 记录 UPDATE 操作（保存更新前和更新后的数据）
           if (!isUndoRedoInProgress) {
@@ -154,21 +205,18 @@ const useModelStore = create<ModelStore>()(
         return set((state) => {
           const cmpMaps = getCmpMaps();
           const oldCmps: Cmp[] = [];
-          let currentCmps = state.cmps;
           if (!addCmps.length && !updateCmps.length) {
             return state;
           }
-          const busData = useBusinessStore.getState();
           if (addCmps.length) {
-            currentCmps = [...currentCmps, ...addCmps];
-            !addNoRender && cmpRender({ cmps: addCmps, type: RenderType.ADD, busData });
+            if (!addNoRender) renderView({ cmps: addCmps, type: RenderType.ADD });
           }
           if (updateCmps.length) {
             updateCmps.forEach((cmp) => {
               const existingCmp = cmpMaps.get(cmp.id);
               oldCmps.push(existingCmp as Cmp);
             });
-            !updateNoRender && cmpRender({ cmps: updateCmps, type: RenderType.UPDATE, busData });
+            if (!updateNoRender) renderView({ cmps: updateCmps, type: RenderType.UPDATE });
           }
           const allNewCmps = getCmps();
           // 如果同时有新增和更新，合并为一个混合操作记录
@@ -197,8 +245,7 @@ const useModelStore = create<ModelStore>()(
           const deleteIds = getExtraRemoveIds(ids);
           // 在删除前保存被删除元素的完整数据
           const deletedCmps = deleteIds.map((id) => cmpMaps.get(id));
-          const busData = useBusinessStore.getState();
-          cmpRender({ cmps: deletedCmps, type: renderType, busData });
+          renderView({ cmps: deletedCmps, type: renderType });
           const allNewCmps = getCmps();
           // 记录 DELETE 操作
           if (!isUndoRedoInProgress && deleteIds.length > 0) {
@@ -231,8 +278,7 @@ const useModelStore = create<ModelStore>()(
               copyCmps.push({ ...copiedCmp });
             }
           });
-          const busData = useBusinessStore.getState();
-          cmpRender({ cmps: copyCmps, type: renderType, busData });
+          renderView({ cmps: copyCmps, type: renderType });
           const newCmps = [...state.cmps, ...copyCmps];
           if (!isUndoRedoInProgress) {
             return {
@@ -262,25 +308,23 @@ const useModelStore = create<ModelStore>()(
         if (state.pastStates.length === 0) return;
         isUndoRedoInProgress = true;
         const lastOperation = state.pastStates[state.pastStates.length - 1];
-        const busData = useBusinessStore.getState();
         set((currentState) => {
           const { addCmps, updateOldCmps, deleteCmps } = lastOperation;
           // 恢复更新的元素到更新前的状态
           if (updateOldCmps?.length) {
-            cmpRender({
+            renderView({
               cmps: updateOldCmps,
               type: RenderType.UPDATE,
               updateEditBox: Boolean(state.selectCmpIds.length),
-              busData,
             });
           }
           // 删除新增的元素
           if (addCmps?.length) {
-            cmpRender({ cmps: addCmps, type: RenderType.DELETE, busData });
+            renderView({ cmps: addCmps, type: RenderType.DELETE });
           }
           // 删除删除的元素
           if (deleteCmps?.length) {
-            cmpRender({ cmps: deleteCmps, type: RenderType.ADD, busData });
+            renderView({ cmps: deleteCmps, type: RenderType.ADD });
           }
           const undoRedoState = getUndoRedoState({
             pastStates: state.pastStates,
@@ -297,22 +341,20 @@ const useModelStore = create<ModelStore>()(
         if (state.futureStates.length === 0) return;
         isUndoRedoInProgress = true;
         const lastOperation = state.futureStates[state.futureStates.length - 1];
-        const busData = useBusinessStore.getState();
         set((currentState) => {
           const { addCmps, updateNewCmps, deleteCmps } = lastOperation;
           if (addCmps?.length) {
-            cmpRender({ cmps: addCmps, type: RenderType.ADD, busData });
+            renderView({ cmps: addCmps, type: RenderType.ADD });
           }
           if (updateNewCmps?.length) {
-            cmpRender({
+            renderView({
               cmps: updateNewCmps,
               type: RenderType.UPDATE,
               updateEditBox: Boolean(state.selectCmpIds.length),
-              busData,
             });
           }
           if (deleteCmps?.length) {
-            cmpRender({ cmps: deleteCmps, type: RenderType.DELETE, busData });
+            renderView({ cmps: deleteCmps, type: RenderType.DELETE });
           }
           const undoRedoState = getUndoRedoState({
             pastStates: state.pastStates,
@@ -338,8 +380,7 @@ const useModelStore = create<ModelStore>()(
           // 保存更新前的数据
           const oldCmps = selectedCmps.map((cmp) => ({ ...defaultPosition, ...cmp }));
           const newCmps = alignElements(selectedCmps, alignType);
-          const busData = useBusinessStore.getState();
-          cmpRender({ cmps: newCmps, type: RenderType.UPDATE, updateEditBox: true, busData });
+          renderView({ cmps: newCmps, type: RenderType.UPDATE, updateEditBox: true });
           // 记录 UPDATE 操作（保存更新前和更新后的数据）
           if (!isUndoRedoInProgress && oldCmps.length > 0) {
             return {
@@ -358,20 +399,14 @@ const useModelStore = create<ModelStore>()(
       },
     }),
     {
-      storage: createJSONStorage(() => {
-        return {
-          getItem: (key: string) => {
-            return getStorage(MODELSTOREKEY)?.getItem(key);
-          },
-          setItem: (key: string, value: any) => {
-            return getStorage(MODELSTOREKEY)?.setItem(key, value);
-          },
-          removeItem: (key: string) => {
-            return getStorage(MODELSTOREKEY)?.removeItem(key);
-          },
-        };
-      }),
+      storage: createJSONStorage(() => modelStorage),
       name: MODELSTOREKEY,
+      partialize: (state) => ({
+        cmps: state.cmps,
+        largeScene: state.largeScene,
+        selectCmpIds: state.selectCmpIds,
+        zoomLayer: state.zoomLayer,
+      }),
       onRehydrateStorage: () => {
         return (state, error) => {
           if (!error && state) {

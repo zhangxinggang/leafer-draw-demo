@@ -1,5 +1,5 @@
 import { App } from '@momo/leafer-draw/renderer';
-import { IEditorConfig } from 'leafer-ui';
+import type { IEditorConfig } from 'leafer-ui';
 import { useShallow } from 'zustand/react/shallow';
 import useBusinessStore from '../../store/business';
 import useCanvasStore from '../../store/canvas';
@@ -15,10 +15,11 @@ export default function Canvas({ renderId }: { renderId: string }) {
       editorConfig: state.editorConfig,
     })),
   );
-  const { zoomLayer, selectCmpIds } = useModelStore(
+  const { zoomLayer, selectCmpIds, largeScene } = useModelStore(
     useShallow((state) => ({
       zoomLayer: state.zoomLayer,
       selectCmpIds: state.selectCmpIds,
+      largeScene: state.largeScene,
     })),
   );
   const { canvasBackgroundColor, rulerVisible, darkMode } = useCanvasStore(
@@ -42,11 +43,14 @@ export default function Canvas({ renderId }: { renderId: string }) {
     onTap,
   } = useEventHandler();
 
-  const state = useToolbarStore((state) => state.state);
+  const toolbarState = useToolbarStore((store) => store.state);
   const { rectGroupOption } = useBusinessStore.getState().businessStyle;
 
-  const isBus = [ToolBarState.LineRect, ToolBarState.rectGroup].includes(state);
-  const defaultEditorConfig = { ...editorConfig, visible: ![ToolBarState.Dragger].includes(state) };
+  const isBus = [ToolBarState.LineRect, ToolBarState.rectGroup].includes(toolbarState);
+  const defaultEditorConfig = {
+    ...editorConfig,
+    visible: ![ToolBarState.Dragger].includes(toolbarState),
+  };
   const busEditorConf: IEditorConfig = {
     moveable: false,
     resizeable: false,
@@ -68,7 +72,7 @@ export default function Canvas({ renderId }: { renderId: string }) {
       zoomLayer={zoomLayer}
       editorConf={isBus ? busEditorConf : defaultEditorConfig}
       selectCmpIds={selectCmpIds}
-      canvasBackgroundColor={canvasBackgroundColor}
+      canvasBackgroundColor={largeScene ? 'transparent' : canvasBackgroundColor}
       rulerVisible={rulerVisible}
       darkMode={darkMode}
       onPointDown={onPointDown}
@@ -82,9 +86,7 @@ export default function Canvas({ renderId }: { renderId: string }) {
       onViewMove={onViewMove}
       onViewZoom={onViewZoom}
       onTap={onTap}
-      onAppChange={(app) => {
-        setApp(app);
-      }}
+      onAppChange={setApp}
     />
   );
 }
