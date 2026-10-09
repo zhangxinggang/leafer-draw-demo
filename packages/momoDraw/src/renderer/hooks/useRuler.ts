@@ -1,4 +1,4 @@
-import { App } from 'leafer-ui';
+import type { App } from 'leafer-ui';
 import { Ruler } from 'leafer-x-ruler';
 import { useEffect, useRef } from 'react';
 
@@ -29,15 +29,17 @@ export const useRuler = ({
 
   const initRuler = (app: App) => {
     const ruler = new Ruler(app, {
-      enabled: true,
+      enabled: rulerVisible,
     });
     rulerRef.current = ruler;
     ruler.addTheme('dark', {
       backgroundColor: '#16161a',
-      textColor: '#rgba(255, 255, 255, 0.5)',
+      textColor: 'rgba(255, 255, 255, 0.5)',
       borderColor: '#686868',
       highlightColor: 'rgba(0, 102, 255, 0.5)',
     });
+    ruler.changeTheme(darkMode ? 'dark' : 'light');
+    return ruler;
   };
 
   const changeTheme = (theme: string) => {

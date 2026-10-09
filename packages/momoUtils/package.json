@@ -3,7 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test:rectangle": "node --test src/rectangleEscape/index.test.mjs",
+    "test:cabinet": "node --test src/extremeCabinet/*.test.mjs",
+    "bench:cabinet": "node src/extremeCabinet/benchmark.mjs",
+    "bench:cabinet:profile": "node src/extremeCabinet/profile.mjs"
+  },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./worker": "./src/worker/index.ts",
+    "./cabinetImport": "./src/extremeCabinet/import.ts",
+    "./compactCabinet": "./src/extremeCabinet/compact.ts",
+    "./rectangleEscape": "./src/rectangleEscape/index.ts",
+    "./extremeCabinet": "./src/extremeCabinet/index.ts"
   }
 }

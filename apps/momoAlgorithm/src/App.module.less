@@ -1,0 +1,236 @@
+@ink: #203649;
+@muted: #6d8394;
+@teal: #087f8c;
+
+.app {
+	min-height: 100vh;
+}
+.header {
+	height: 72px;
+	padding: 0 36px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid #dce5ed;
+	background: #fff;
+}
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	color: @ink;
+	text-decoration: none;
+	font-family: Bahnschrift, 'Microsoft YaHei UI', sans-serif;
+	font-size: 24px;
+	font-weight: 600;
+	letter-spacing: -0.7px;
+}
+.brandMark {
+	width: 38px;
+	height: 38px;
+	border-radius: 11px;
+	display: grid;
+	place-items: center;
+	color: #fff;
+	background: @teal;
+}
+.brandSuffix {
+	margin-left: 7px;
+	font-size: 18px;
+	color: @muted;
+	font-weight: 400;
+	letter-spacing: -0.3px;
+}
+.headerLabel {
+	color: @muted;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 12px;
+}
+.headerDot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: @teal;
+}
+.catalog {
+	max-width: 1512px;
+	padding: 66px 44px 32px;
+	margin: 0 auto;
+}
+.eyebrow {
+	font-family: 'Cascadia Code', Consolas, monospace;
+	font-size: 11px;
+	letter-spacing: 2px;
+	color: @teal;
+}
+.catalogIntro h1 {
+	font-size: clamp(30px, 3vw, 43px);
+	letter-spacing: -1px;
+	font-weight: 600;
+	margin: 18px 0 16px;
+}
+.catalogIntro p {
+	font-size: 15px;
+	color: @muted;
+	line-height: 1.8;
+	margin: 0;
+}
+.catalogHeading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	margin: 48px 0 20px;
+}
+.catalogHeading h2 {
+	font-size: 17px;
+	margin: 0;
+	font-weight: 600;
+}
+.catalogHeading > span {
+	font-size: 12px;
+	color: @muted;
+}
+.cardGrid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 20px;
+}
+.card {
+	border-radius: 16px;
+	background: #fff;
+	border: 1px solid #dce5ed;
+	overflow: hidden;
+	position: relative;
+}
+.activeCard {
+	border-color: #8fc1c9;
+	box-shadow: 0 8px 24px #20364908;
+	transition:
+		transform 0.2s,
+		box-shadow 0.2s;
+}
+.activeCard:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 14px 30px #20364912;
+}
+.illustration {
+	display: block;
+	width: 100%;
+	aspect-ratio: 400 / 220;
+	background: #edf5f7;
+}
+.placeholderArt {
+	aspect-ratio: 400 / 220;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	color: #b1bfcb;
+	background: #f7f9fb;
+}
+.placeholderArt > span {
+	font-size: 12px;
+}
+.cardContent {
+	padding: 23px;
+}
+.category {
+	color: @teal;
+	font-size: 11px;
+}
+.cardContent h3 {
+	font-size: 23px;
+	font-weight: 600;
+	margin: 10px 0 12px;
+}
+.cardContent p {
+	min-height: 72px;
+	font-size: 13px;
+	line-height: 1.85;
+	color: @muted;
+	margin: 0;
+}
+.tagList {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 20px 0 26px;
+}
+.tagList span {
+	padding: 4px 7px;
+	border-radius: 4px;
+	background: #f2f6fa;
+	color: #648092;
+	font-size: 10px;
+}
+.cardLink {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: @teal;
+	font-size: 13px;
+	font-weight: 600;
+	text-decoration: none;
+}
+.cardLink::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+.cardLink:focus-visible::after {
+	outline: 3px solid #427cd1;
+	outline-offset: -4px;
+	border-radius: 16px;
+}
+.comingCard h3 {
+	color: #7890a1;
+}
+.comingLabel {
+	font-size: 12px;
+	color: #94a5b3;
+}
+.catalogFooter {
+	margin-top: 36px;
+	padding-top: 22px;
+	border-top: 1px solid #dce5ed;
+	display: flex;
+	justify-content: space-between;
+	color: #8195a5;
+	font-size: 11px;
+}
+.catalogFooter > span {
+	font-family: 'Cascadia Code', Consolas, monospace;
+}
+@media (max-width: 1200px) {
+	.cardGrid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 640px) {
+	.header {
+		padding: 0 20px;
+		height: 64px;
+	}
+	.headerLabel {
+		display: none;
+	}
+	.catalog {
+		padding: 38px 20px 24px;
+	}
+	.cardGrid {
+		grid-template-columns: 1fr;
+	}
+	.catalogFooter > span {
+		display: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.activeCard {
+		transition: none;
+	}
+	.activeCard:hover {
+		transform: none;
+	}
+}

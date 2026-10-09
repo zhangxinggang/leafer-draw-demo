@@ -1,121 +1,75 @@
-import type { UI } from 'leafer-ui';
-import { RenderParams, RenderType } from '../../types';
+import type { Box, PropertyEvent, Text } from 'leafer-ui';
+import type { RenderParams } from '../../types';
+import { RenderType } from '../../types';
 import { getApp } from '../../utils/leafer';
-import { handleTypeRender } from '../utils/renderHelper';
+import { textWidth } from '../utils/wiring';
 
-type IFunc = new (props: any) => UI;
 interface LeaferObj {
-  Rect: IFunc;
-  Box: IFunc;
-  Text: IFunc;
+  Box: typeof Box;
+  Text: typeof Text;
+  PropertyEvent: typeof PropertyEvent;
 }
+type RectLineBox = Box & { updateLabels?: () => void };
 
-const TEXTPADDINGPERCENT = 0.3;
-const TEXTWIDTHPERCENT = 0.1;
-const MINFONTSIZE = 14;
-
-interface IUpdateTextElements {
-  box: UI;
-  textLines: string[];
-  width: number;
-  height: number;
-  textFill?: string;
-  leaferObj: LeaferObj;
-}
-/**
- * 更新 Box 内部的文本元素
- */
-function updateTextElements({
-  box,
-  textLines,
-  width,
-  height,
-  textFill,
-  leaferObj,
-}: IUpdateTextElements) {
-  const { Rect, Text } = leaferObj;
-  // 移除所有 Text 子元素（保留 Rect）
-  const children = box.children || [];
-  const textElements = children.filter((child) => child instanceof Text);
-  textElements.forEach((text) => {
-    box.remove(text);
-    text.destroy();
-  });
-
-  // 更新背景 Rect 的尺寸
-  const rect = children.find((child) => child instanceof Rect) as UI;
-  if (rect) {
-    rect.width = width;
-    rect.height = height;
-  }
-
-  // 如果有文本行，创建新的 Text 子元素
-  if (textLines && textLines.length > 0) {
-    const textHeight = height / textLines.length;
-    textLines.forEach((text, index) => {
-      const textElement = new Text({
-        text: text || '',
-        x: 0,
-        y: index * textHeight,
-        width: width,
-        height: textHeight,
-        resizeFontSize: true,
-        fill: textFill || '#000000',
-        padding: [0, 10],
-        textWrap: 'none',
-        textOverflow: '...',
-        verticalAlign: 'middle',
-        textAlign: 'left',
-        editable: false,
-      });
-      box.add(textElement);
-    });
-  }
-}
-
-export default function (props: LeaferObj) {
-  const { Box, Text } = props;
-  return function component({ cmp, type = RenderType.ADD, busData }: RenderParams) {
-    const app = getApp();
+export default function ({ Box, Text, PropertyEvent }: LeaferObj) {
+  return function component({ cmp, type = RenderType.ADD, busData, app: scopedApp }: RenderParams) {
+    const app = scopedApp || getApp();
     if (!app) return null;
-    const isRender = handleTypeRender({ type, cmp });
-    if (isRender) {
+    const existing = app.tree.findId(cmp.id) as RectLineBox;
+    if (type === RenderType.DELETE) {
+      existing?.destroy();
       return null;
     }
-    const { businessConf } = busData;
-    const { width, height } = cmp;
-    const { rectGroupName, rectWidth, rectHeight, unitWidth, unitHeight } = businessConf;
-    const textLines = [
-      rectGroupName,
-      `宽：${rectWidth}`,
-      `高：${rectHeight}`,
-      `${rectWidth / unitWidth}宽${rectHeight / unitHeight}高`,
-    ];
-    const box = new Box(cmp);
-    const canUseHeight = (1 - TEXTPADDINGPERCENT) * height;
-    const canUseWidth = width * TEXTWIDTHPERCENT;
-    const textHeight = ((1 - TEXTPADDINGPERCENT) * height) / textLines.length;
-    textLines.forEach((text, index) => {
-      const textElement = new Text({
-        text: text || '',
-        x: 0,
-        y: index * textHeight + (height * TEXTPADDINGPERCENT) / 2,
-        width: width,
-        height: textHeight,
-        fontSize: Math.min(canUseHeight, canUseWidth, MINFONTSIZE),
-        resizeFontSize: true,
-        fill: '#000000',
-        padding: [0, 10],
-        textWrap: 'none',
-        textOverflow: '...',
-        verticalAlign: 'middle',
-        textAlign: 'left',
-        lock: true,
-      });
-      box.add(textElement);
+    const conf = busData?.businessConf;
+    const textLines =
+      cmp.textLines ??
+      (conf
+        ? [
+            conf.rectGroupName,
+            `宽：${conf.rectWidth}`,
+            `高：${conf.rectHeight}`,
+            `${conf.rectWidth / conf.unitWidth}宽${conf.rectHeight / conf.unitHeight}高`,
+          ]
+        : []);
+    const { backendData, textLines: _labels, textFill, ...attrs } = cmp;
+    const box = existing || new Box();
+    box.set({
+      ...attrs,
+      hitFill: 'all',
+      hitChildren: false,
+      data: { ...cmp.data, textLines, textFill },
     });
-    // ADD (default) 或 UPDATE 时找不到现有元素
-    app.tree.add(box);
+    const updateLabels = () => {
+      box.children.slice().forEach((child) => child.destroy());
+      const labels = box.data.textLines as string[];
+      const { width = 0, height = 0 } = box;
+      const lineHeight = (height * 0.8) / Math.max(labels.length, 1);
+      labels.forEach((text, index) => {
+        box.add(
+          new Text({
+            text,
+            x: width * 0.075,
+            y: height * 0.08 + index * lineHeight,
+            width: width * 0.85,
+            height: lineHeight,
+            fontSize: Math.min(height * 0.05, (width * 0.85) / Math.max(textWidth(text), 1)),
+            fill: box.data.textFill || '#354b44',
+            verticalAlign: 'middle',
+            textWrap: 'none',
+            textOverflow: '...',
+            hittable: false,
+            editable: false,
+          }),
+        );
+      });
+    };
+    if (!existing) {
+      box.on(PropertyEvent.CHANGE, (e: PropertyEvent) => {
+        if (['width', 'height'].includes(e.attrName)) updateLabels();
+      });
+      app.tree.add(box);
+    }
+    updateLabels();
     return box;
   };
 }

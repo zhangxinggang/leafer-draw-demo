@@ -8,6 +8,8 @@
     "./generator": "./src/generator.ts",
     "./renderer": "./src/renderer/index.ts",
     "./renderer/app": "./src/renderer/app/index.tsx",
+    "./renderer/cabinet": "./src/renderer/cabinet/index.ts",
+    "./renderer/cabinet/viewport": "./src/renderer/cabinet/viewport.ts",
     "./renderer/largeScene": "./src/renderer/largeScene/index.ts",
     "./types": "./src/types/index.ts",
     "./types/cmp": "./src/types/cmp.ts",

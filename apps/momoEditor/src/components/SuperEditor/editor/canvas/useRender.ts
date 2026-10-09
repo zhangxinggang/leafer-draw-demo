@@ -13,7 +13,7 @@ export default function useRender() {
       tempReminderCmps: state.tempReminderCmps,
     })),
   );
-  const haveInitRef = useRef(false);
+  const renderedAppRef = useRef<typeof app>(null);
   const prevTempReminderCmpsRef = useRef<typeof tempReminderCmps>([]);
 
   const { initialized, cmps } = useModelStore(
@@ -24,10 +24,10 @@ export default function useRender() {
   );
 
   useEffect(() => {
-    if (!app?.tree || haveInitRef.current || !initialized) return;
-    haveInitRef.current = true;
+    if (!app?.tree || renderedAppRef.current === app || !initialized) return;
+    renderedAppRef.current = app;
     renderView({ cmps, type: RenderType.ADD });
-  }, [app, initialized]);
+  }, [app, initialized, cmps]);
 
   useEffect(() => {
     if (!app?.tree || !genCmp) return;
@@ -40,10 +40,18 @@ export default function useRender() {
     if (tempReminderCmps.length) {
       tempReminderCmps.forEach((item) => {
         const cmp = app.tree.findId(item.id);
-        renderView({ cmps: [item], type: cmp ? RenderType.UPDATE : RenderType.ADD });
+        renderView({
+          cmps: [item],
+          type: cmp ? RenderType.UPDATE : RenderType.ADD,
+          noRecord: true,
+        });
       });
     } else {
-      renderView({ cmps: prevTempReminderCmpsRef.current, type: RenderType.DELETE });
+      renderView({
+        cmps: prevTempReminderCmpsRef.current,
+        type: RenderType.DELETE,
+        noRecord: true,
+      });
     }
     prevTempReminderCmpsRef.current = tempReminderCmps;
   }, [app, tempReminderCmps]);

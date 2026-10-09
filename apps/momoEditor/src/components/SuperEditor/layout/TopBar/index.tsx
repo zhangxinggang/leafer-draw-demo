@@ -253,6 +253,7 @@ export default function TopBar() {
 
           {/* 撤销重做 */}
           <Button
+            aria-label='撤销'
             icon={<Icon icon='mdi:undo' />}
             onClick={() => {
               undo();
@@ -260,6 +261,7 @@ export default function TopBar() {
             disabled={pastStates.length === 0}
           />
           <Button
+            aria-label='重做'
             icon={<Icon icon='mdi:redo' />}
             onClick={() => {
               redo();

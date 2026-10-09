@@ -1,114 +1,116 @@
-import { IConnectorOption, LeaferXQnConnector } from 'leafer-x-connector';
-import { RenderParams, RenderType } from '../../types';
+import type { App, Group, PropertyEvent } from 'leafer-ui';
+import type { IBusinessStore, RenderParams } from '../../types';
+import { RenderType } from '../../types';
 import { onBusAddCmp } from '../../utils/business';
-import { elementChange, getApp } from '../../utils/leafer';
-import { getStartPointFromPointsSubCircle } from '../../utils/math';
-import { generateArrowPath } from '../../utils/path';
-import { checkIsStartConn, connCircleSize } from '../utils/conn';
-import { handleTypeRender } from '../utils/renderHelper';
+import { getApp } from '../../utils/leafer';
+import { cableColor, wiringData } from '../utils/wiring';
 
+type WiringGroup = Group & { refreshWiring?: () => void };
 interface LeaferObj {
-  PropertyEvent: any;
-}
-interface ISetConnectorProps {
-  instance: any;
-  props: any;
-  leaferObj: LeaferObj;
+  Group: typeof Group;
+  PropertyEvent: typeof PropertyEvent;
 }
 
-const setConnectorProps = ({ instance, props, leaferObj }: ISetConnectorProps) => {
-  instance.editable = false;
-  instance.hittable = false;
-  instance.draggable = false;
-  Object.assign(instance, props);
-  instance.on?.(leaferObj.PropertyEvent.CHANGE, (e) => {
-    // 存在x,y属性时，多元素移动时，会发生绘制错乱
-    if (e.type === 'property.change' && ['x', 'y'].includes(e.attrName)) {
-      instance.x = undefined;
-      instance.y = undefined;
-    }
+// Recompute endpoints and port numbers after a batch, including undo/delete.
+export function refreshConnections(app: App, busData?: IBusinessStore) {
+  const connections = app.tree.children.filter(
+    (node) => (node as WiringGroup).refreshWiring,
+  ) as WiringGroup[];
+  const incoming = new Map<string, WiringGroup>();
+  const outgoing = new Map<string, WiringGroup>();
+  connections.forEach((node) => {
+    incoming.set(node.data.targetConnId, node);
+    outgoing.set(node.data.sourceConnId, node);
   });
-};
+  const groups = new Map<string, number>();
+  app.tree.children.forEach((node) => {
+    const groupIndex = busData?.rectGroupIds.indexOf(node.id || '') ?? -1;
+    if (groupIndex >= 0)
+      node.data?.rectGroupChildIds?.forEach((id: string) => groups.set(id, groupIndex + 1));
+  });
+  const ports = new Map<number, number>();
+  const visited = new Set<WiringGroup>();
+  const drawChain = (first: WiringGroup) => {
+    const sender = groups.get(first.data.sourceConnId) || 1;
+    const port = (ports.get(sender) || 0) + 1;
+    ports.set(sender, port);
+    let node: WiringGroup | undefined = first;
+    while (node && !visited.has(node)) {
+      visited.add(node);
+      const { sourceConnId, targetConnId, wiring } = node.data;
+      node.data.style = wiring || {
+        color: cableColor(sender, port),
+        badge: `${sender}-${port}`,
+        start: !incoming.has(sourceConnId),
+        end: !outgoing.has(targetConnId),
+      };
+      node.refreshWiring?.();
+      node = outgoing.get(targetConnId);
+    }
+  };
+  connections.filter((node) => !incoming.has(node.data.sourceConnId)).forEach(drawChain);
+  connections.filter((node) => !visited.has(node)).forEach(drawChain);
+}
 
-export default function (props: LeaferObj) {
-  const { PropertyEvent } = props;
-  return function component({ cmp, type = RenderType.ADD }: RenderParams) {
-    const app = getApp();
+export default function ({ Group, PropertyEvent }: LeaferObj) {
+  return function component({
+    cmp,
+    type = RenderType.ADD,
+    app: scopedApp,
+    recordBusiness = true,
+  }: RenderParams) {
+    const app = scopedApp || getApp();
     if (!app) return null;
-    const isRender = handleTypeRender({ type, cmp });
-    if (isRender) {
+    const existing = app.tree.findId(cmp.id);
+    if (type === RenderType.DELETE) {
+      existing?.destroy();
       return null;
     }
-    const { backendData } = cmp;
-    const { sourceConnId, targetConnId } = backendData || {};
+    if (existing) existing.destroy();
+    const { sourceConnId, targetConnId } = cmp.backendData || {};
     if (!sourceConnId || !targetConnId) return null;
-    const source: any = app.findOne(`#${sourceConnId}`);
-    const target: any = app.findOne(`#${targetConnId}`);
+    const source = app.tree.findId(sourceConnId);
+    const target = app.tree.findId(targetConnId);
     if (!source || !target) return null;
-    onBusAddCmp(cmp);
-    const zIndex = Math.max(source.zIndex, target.zIndex);
-    const isStartCircle = checkIsStartConn(sourceConnId);
-    const opt: IConnectorOption = {
-      padding: 0,
-      onDraw: (param) => {
-        let startPoint = {
-          x: source.x + source.width / 2,
-          y: source.y + source.height / 2,
-        };
-        const endPoint = {
-          x: target.x + target.width / 2,
-          y: target.y + target.height / 2,
-        };
-        if (isStartCircle) {
-          startPoint = getStartPointFromPointsSubCircle({
-            startPoint,
-            endPoint,
-            circleSize: connCircleSize,
-          });
-        }
-        const path = generateArrowPath(startPoint, endPoint);
-        // 根据需求可自定义path即可
-        return path;
-      },
+    if (!scopedApp && recordBusiness) onBusAddCmp(cmp);
+    const group = new Group({
+      id: cmp.id,
+      opacity: cmp.opacity ?? 1,
+      zIndex: Math.max(source.zIndex || 0, target.zIndex || 0) + 1,
+      data: { ...cmp.backendData },
+      editable: false,
+      hittable: false,
+    }) as WiringGroup;
+    group.refreshWiring = () => {
+      const sourceBounds = source.getBounds('box', app.tree);
+      const targetBounds = target.getBounds('box', app.tree);
+      group.children.slice().forEach((child) => child.destroy());
+      group.set({
+        children: wiringData(
+          sourceBounds,
+          targetBounds,
+          group.data.style || { color: cableColor(1, 1), badge: '1-1', start: true, end: true },
+        ),
+      });
     };
-    const leaferConn = new LeaferXQnConnector(source, target, opt);
-    for (const key in cmp) {
-      leaferConn[key] = cmp[key];
-    }
-    leaferConn.zIndex = zIndex + 1;
-    setConnectorProps({
-      instance: leaferConn,
-      props: {
-        zIndex: zIndex + 1,
-      },
-      leaferObj: props,
-    });
-    const connChange = (e: any) => {
-      const isChange = elementChange(e);
-      if (isChange) {
-        leaferConn._draw();
-      }
+    const handleChange = (e: PropertyEvent) => {
+      if (
+        ['x', 'y', 'width', 'height', 'rotation', 'scaleX', 'scaleY', 'skewX', 'skewY'].includes(
+          e.attrName,
+        )
+      )
+        group.refreshWiring?.();
     };
-    const onSourceChange = (e: any) => {
-      connChange(e);
+    source.on(PropertyEvent.CHANGE, handleChange);
+    target.on(PropertyEvent.CHANGE, handleChange);
+    const destroy = group.destroy.bind(group);
+    group.destroy = () => {
+      source.off(PropertyEvent.CHANGE, handleChange);
+      target.off(PropertyEvent.CHANGE, handleChange);
+      group.refreshWiring = undefined;
+      destroy();
     };
-    const onTargetChange = (e: any) => {
-      connChange(e);
-    };
-    source.on?.(PropertyEvent.CHANGE, onSourceChange);
-    target.on?.(PropertyEvent.CHANGE, onTargetChange);
-    // 确保在连接器被销毁时移除该监听：我们在 destroy 上做一个小的包装
-    const originalDestroy = (leaferConn as any).destroy?.bind(leaferConn);
-    (leaferConn as any).destroy = function () {
-      try {
-        source.off?.(PropertyEvent.CHANGE, onSourceChange);
-        target.off?.(PropertyEvent.CHANGE, onTargetChange);
-      } catch (e) {
-        // ignore
-      }
-      originalDestroy && originalDestroy();
-    };
-    app?.tree.add(leaferConn);
-    return leaferConn;
+    app.tree.add(group);
+    return group;
   };
 }

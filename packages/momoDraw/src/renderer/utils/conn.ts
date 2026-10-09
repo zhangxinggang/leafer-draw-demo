@@ -8,7 +8,7 @@ const getConnStartCircleId = (id: string) => {
 
 const checkIsStartConn = (id: string) => {
   const storeCmp = getCmpByIds([id])[0];
-  const { backendData = {} } = storeCmp;
+  const { backendData = {} } = storeCmp || {};
   const { sourceConnId, targetConnId } = backendData;
   const isStartCircle = !sourceConnId && targetConnId;
   return isStartCircle;
@@ -16,7 +16,7 @@ const checkIsStartConn = (id: string) => {
 
 const getConnStartCircleSIds = (ids: string[]) => {
   const storeCmps = getCmpByIds(ids);
-  let startCircleIds = [];
+  const startCircleIds: string[] = [];
   storeCmps.forEach((cmp) => {
     const { backendData = {} } = cmp;
     const { sourceConnId, targetConnId } = backendData;
