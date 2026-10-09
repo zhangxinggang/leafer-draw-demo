@@ -15,11 +15,9 @@ import { App as LeaferApp, MoveEvent, PointerEvent, ZoomEvent } from 'leafer-ui'
 import { Snap } from 'leafer-x-easy-snap';
 import { PathEditorEvent } from 'leafer-x-path-editor';
 import type { PropsWithChildren } from 'react';
-import React, { forwardRef, useEffect, useRef } from 'react';
-import { usePrevious } from 'react-use';
+import React, { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { setApp } from '../../utils/leafer';
 import { LeaferAppContext } from '../context';
-import useLeaferComponent from '../hooks/useLeaferComponent';
 import { useRuler } from '../hooks/useRuler';
 
 export interface IZoomLayer {
@@ -30,6 +28,10 @@ export interface IZoomLayer {
 
 export interface AppProps {
   renderId: string;
+  panEnabled?: boolean;
+  editorVisible?: boolean;
+  registerGlobal?: boolean;
+  onAppChange?: (app: LeaferApp) => void;
   zoomLayer?: IZoomLayer;
   selectCmpIds?: string[];
   canvasBackgroundColor?: string;
@@ -63,28 +65,20 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
   const {
     renderId,
     children,
-    onPointUp,
-    onPointDown,
-    onMove,
-    onRotate,
-    onScale,
-    onPointMove,
-    onSelect,
-    onTap,
-    onViewZoom,
-    onViewMove,
-    onMoveEnd,
-    onRotateEnd,
-    onScaleEnd,
-    onPathChange,
     selectCmpIds = [],
     zoomLayer,
     canvasBackgroundColor = '#ffffff',
     rulerVisible = true,
     darkMode = false,
     editorConf = {},
-    onAppChange,
+    panEnabled = false,
+    editorVisible = true,
+    registerGlobal = true,
   } = props;
+  // The app lives for the mounted canvas; handlers must see current React state.
+  const propsRef = useRef(props);
+  propsRef.current = props;
+  const [leaferApp, setLeaferApp] = useState<LeaferApp>();
   const moveStateRef = useRef(null);
   const scaleStateRef = useRef(null);
   const rotateStateRef = useRef(null);
@@ -94,89 +88,100 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
   const zoomX = zoomLayer?.x;
   const zoomY = zoomLayer?.y;
   const zoomScale = zoomLayer?.scale;
-  const preSelectCmpIds = usePrevious(selectCmpIds);
   const { initRuler } = useRuler({ rulerVisible, darkMode });
+  const initRulerRef = useRef(initRuler);
+  initRulerRef.current = initRuler;
 
-  const [leaferApp, isInit] = useLeaferComponent(() => {
+  // Portals (e.g. the expanded cabinet dialog) attach their DOM after layout effects.
+  useEffect(() => {
     const handlePointUp = () => {
       if (rotateStateRef.current) {
-        onRotateEnd?.(rotateStateRef.current);
+        propsRef.current.onRotateEnd?.(rotateStateRef.current);
         rotateStateRef.current = null;
       }
       if (moveStateRef.current) {
-        onMoveEnd?.(moveStateRef.current);
+        propsRef.current.onMoveEnd?.(moveStateRef.current);
         moveStateRef.current = null;
       }
 
       if (scaleStateRef.current) {
-        onScaleEnd?.(scaleStateRef.current);
+        propsRef.current.onScaleEnd?.(scaleStateRef.current);
         scaleStateRef.current = null;
       }
     };
 
     const app = new LeaferApp({
-      view: document.getElementById(renderId),
-      fill: canvasBackgroundColor,
+      view: document.getElementById(renderId) || renderId,
+      fill: propsRef.current.canvasBackgroundColor || '#ffffff',
       tree: { type: 'design' },
-      move: { drag: true },
-      // editor: {
-      //   bright: true,
-      //   dimOthers: true,
-      // },
+      move: { drag: propsRef.current.panEnabled ?? false, dragEmpty: false },
     });
     app.sky = app.addLeafer();
-    app.sky.add((app.editor = new Editor({ moveable: false })));
+    app.sky.add((app.editor = new Editor(editorConfRef.current)));
+    app.editor.visible = propsRef.current.editorVisible ?? true;
 
     app.editor.on(EditorScaleEvent.SCALE, (e) => {
       scaleStateRef.current = e;
-      onScale?.(e);
+      propsRef.current.onScale?.(e);
     });
 
     app.editor.on(EditorMoveEvent.MOVE, (e) => {
       moveStateRef.current = e;
-      onMove?.(e);
+      propsRef.current.onMove?.(e);
     });
 
     app.editor.on(EditorRotateEvent.ROTATE, (e) => {
       rotateStateRef.current = e;
-      onRotate?.(e);
+      propsRef.current.onRotate?.(e);
     });
 
-    app.editor.on(EditorEvent.SELECT, onSelect);
+    app.editor.on(EditorEvent.SELECT, (e) => propsRef.current.onSelect?.(e));
 
-    app.editor.on(PathEditorEvent.CHANGE, onPathChange);
+    app.editor.on(PathEditorEvent.CHANGE, (e) => propsRef.current.onPathChange?.(e));
 
-    app.tree.on(MoveEvent.MOVE, onViewMove);
+    app.tree.on(MoveEvent.MOVE, (e) => propsRef.current.onViewMove?.(e));
 
-    app.tree.on(ZoomEvent.ZOOM, onViewZoom);
+    app.tree.on(ZoomEvent.ZOOM, (e) => propsRef.current.onViewZoom?.(e));
 
-    app.on(PointerEvent.DOWN, onPointDown);
+    app.on(PointerEvent.DOWN, (e) => propsRef.current.onPointDown?.(e));
 
-    app.on(PointerEvent.UP, onPointUp);
+    app.on(PointerEvent.UP, (e) => propsRef.current.onPointUp?.(e));
 
     app.on(PointerEvent.UP, handlePointUp);
 
-    app.on(PointerEvent.TAP, onTap);
+    app.on(PointerEvent.TAP, (e) => propsRef.current.onTap?.(e));
 
-    app.on(PointerEvent.MOVE, onPointMove);
+    app.on(PointerEvent.MOVE, (e) => propsRef.current.onPointMove?.(e));
 
     const snap = new Snap(app);
     // 启用
     snap.enable(true);
     // 初始化标尺
-    initRuler(app);
+    const ruler = initRulerRef.current(app);
     // 设置全局 app 引用
-    setApp(app);
-    onAppChange?.(app);
-    return app;
-  });
+    if (registerGlobal) setApp(app);
+    setLeaferApp(app);
+    propsRef.current.onAppChange?.(app);
+    return () => {
+      snap.destroy();
+      ruler.dispose();
+      app.destroy();
+      if (globalThis.spuEditorApp === app) setApp(null);
+    };
+  }, [renderId, registerGlobal]);
 
   useEffect(() => {
     if (!leaferApp) return;
     leaferApp.editor.config = { ...leaferApp.editor.config, ...editorConfRef.current };
     leaferApp.editor.update();
-    if (leaferApp.config.move) leaferApp.config.move.drag = !leaferApp.editor.visible;
   }, [editorConfSignature, leaferApp]);
+
+  useLayoutEffect(() => {
+    if (!leaferApp) return;
+    leaferApp.editor.visible = editorVisible;
+    // 2.x can pan empty space independently of move.drag.
+    Object.assign(leaferApp.config.move, { drag: panEnabled, dragEmpty: false });
+  }, [leaferApp, panEnabled, editorVisible]);
 
   useEffect(() => {
     if (!leaferApp) return;
@@ -185,22 +190,12 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
   }, [leaferApp, canvasBackgroundColor]);
 
   useEffect(() => {
-    return () => {
-      leaferApp?.destroy();
-      // 清理全局 app 引用
-      if (globalThis.spuEditorApp === leaferApp) {
-        globalThis.spuEditorApp = null;
-      }
-    };
-  }, [leaferApp]);
-
-  useEffect(() => {
     if (!leaferApp) return;
     if (zoomX !== undefined) {
-      leaferApp.tree.x = zoomX;
+      leaferApp.tree.zoomLayer.x = zoomX;
     }
     if (zoomY !== undefined) {
-      leaferApp.tree.y = zoomY;
+      leaferApp.tree.zoomLayer.y = zoomY;
     }
   }, [leaferApp, zoomX, zoomY]);
 
@@ -214,16 +209,12 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
   useEffect(() => {
     if (!leaferApp) return;
 
-    if (preSelectCmpIds?.length === selectCmpIds.length) {
-      if (preSelectCmpIds?.every((id) => selectCmpIds.includes(id))) {
-        return;
-      }
-    }
-
     const selectedUI = selectCmpIds.map((id) => leaferApp.tree.findId(id)).filter((o) => !!o);
-
+    const current = leaferApp.editor.list;
+    if (current.length === selectedUI.length && current.every((node) => selectedUI.includes(node)))
+      return;
     leaferApp.editor.select(selectedUI as Parameters<Editor['select']>[0]);
-  }, [selectCmpIds, leaferApp, preSelectCmpIds]);
+  }, [selectCmpIds, leaferApp]);
 
   // 暴露 ref 方法
   React.useImperativeHandle(ref, () => ({
@@ -247,7 +238,7 @@ const App = forwardRef<AppRef, PropsWithChildren<AppProps>>((props, ref) => {
   }));
 
   return (
-    <LeaferAppContext.Provider value={leaferApp}>{isInit && children}</LeaferAppContext.Provider>
+    <LeaferAppContext.Provider value={leaferApp}>{leaferApp && children}</LeaferAppContext.Provider>
   );
 });
 

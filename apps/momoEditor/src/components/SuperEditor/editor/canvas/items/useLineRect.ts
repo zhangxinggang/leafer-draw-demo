@@ -1,11 +1,13 @@
-import { Cmp, CmpType, generateCmp, RenderType } from '@momo/leafer-draw';
+import type { Cmp } from '@momo/leafer-draw';
+import { CmpType, generateCmp, RenderType } from '@momo/leafer-draw';
 import {
   checkConnIsSquare,
   checkIsOverMaxArea,
   fromIdGetEntireRectLines,
+  onBusAddCmp,
 } from '@momo/leafer-draw/utils/business';
 import { getCmpByIds, setMaps } from '@momo/leafer-draw/utils/cmp';
-import { PointerEvent } from 'leafer-ui';
+import type { PointerEvent } from 'leafer-ui';
 import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 import useBusinessStore from '../../../store/business';
@@ -52,8 +54,17 @@ const useLineRect = () => {
     if (targetOriginalData?.backendData.type !== CmpType.RectLine) return;
     const isExist = preLineRect.current.some((item) => item.id === tid);
     if (isExist) return;
-    const isOverMaxArea = checkIsOverMaxArea({ cmps: preLineRect.current });
+    const isOverMaxArea = checkIsOverMaxArea({
+      cmps: [...preLineRect.current, targetOriginalData],
+      maxArea: businessConf.connGroupLimit,
+    });
     const lastRect = preLineRect.current[preLineRect.current.length - 1];
+    if (
+      !lastRect ||
+      targetOriginalData.backendData.sourceConnId ||
+      targetOriginalData.backendData.targetConnId
+    )
+      return;
     const sourceConnId = lastRect.id;
     const connComp = generateCmp(CmpType.Connector, {
       leaferAttr: {
@@ -67,6 +78,7 @@ const useLineRect = () => {
 
     if (isOverMaxArea) {
       const tempTargetId = tid + '_temp';
+      if (useCanvasStore.getState().tempReminderCmps.some((cmp) => cmp.id === tempTargetId)) return;
       const tempConnTargetId = connComp.id + '_tempconn';
       const tempTarget: Cmp = {
         ...targetOriginalData,
@@ -86,7 +98,6 @@ const useLineRect = () => {
         },
       };
       const tempCmps = [tempTarget, tempConnComp];
-      preLineRect.current.push(tempTarget);
       addTempReminderCmps(tempCmps);
     } else {
       renderView({ cmps: [connComp], type: RenderType.ADD, noRecord: true });
@@ -106,6 +117,8 @@ const useLineRect = () => {
 
   const endAddLineRect = () => {
     if (!preLineRect.current) return;
+    setMaps(onceAddConnsRef.current);
+    onceAddConnsRef.current.forEach(onBusAddCmp);
     if (!freeRouting) {
       const result = checkConnIsSquare(preLineRect.current, {
         connGroupLimit: businessConf.connGroupLimit,
@@ -117,7 +130,6 @@ const useLineRect = () => {
         id: item.id,
         fill: result.length ? businessStyle.tempReminderColor : undefined,
       }));
-      setMaps(onceAddConnsRef.current); // 之前未记录，只进行了渲染，现在一次性记录
       addAndUpdateCmps({
         addCmps: onceAddConnsRef.current,
         updateCmps: optionRectData,

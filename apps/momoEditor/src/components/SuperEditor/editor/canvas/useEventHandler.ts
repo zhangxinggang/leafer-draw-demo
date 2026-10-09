@@ -1,16 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import {
-  EditorEvent,
-  EditorMoveEvent,
-  EditorRotateEvent,
-  EditorScaleEvent,
-} from '@leafer-in/editor';
+import type { EditorEvent } from '@leafer-in/editor';
 import { generateCmp } from '@momo/leafer-draw/generator';
-import { Cmp, CmpType, PathCmp } from '@momo/leafer-draw/types/cmp';
-import { IPointData, IUI, MoveEvent, PointerEvent, UI, ZoomEvent } from 'leafer-ui';
-import { PathEditorEvent } from 'leafer-x-path-editor';
+import type { Cmp, PathCmp } from '@momo/leafer-draw/types/cmp';
+import { CmpType } from '@momo/leafer-draw/types/cmp';
+import type { IPointData, IUI, PointerEvent } from 'leafer-ui';
+import type { PathEditorEvent } from 'leafer-x-path-editor';
 import { debounce } from 'lodash-es';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import useCanvasStore from '../../store/canvas';
 import useModelStore from '../../store/model';
@@ -48,19 +44,21 @@ export default function useEventHandler() {
     })),
   );
 
-  const debounceUpdateCmps = debounce(updateCmps, 100);
-
   const setState = useToolbarStore((state) => state.setState);
 
   const onPointDown = (e: PointerEvent) => {
+    if (appRef.current?.interaction.moveMode || (e.buttons && e.buttons !== 1)) return;
     // 使用getLocalPoint获取相对于画布的坐标，而不是页面坐标
     const point = e.getPagePoint();
     const toolbarState = useToolbarStore.getState().state;
-    if (toolbarState === ToolBarState.rectGroup) {
+    if (
+      [ToolBarState.rectGroup, ToolBarState.Select, ToolBarState.Dragger].includes(toolbarState)
+    ) {
       return;
     }
     if (toolbarState === ToolBarState.RectLine) {
       preRectLine.current = [];
+      addRectLine({ point });
       return;
     }
     if (toolbarState === ToolBarState.LineRect) {
@@ -93,10 +91,9 @@ export default function useEventHandler() {
       ToolBarState.rectGroup,
     ].includes(toolbarState);
     if (noMoveEvent) return;
-    if (appRef.current) appRef.current.editor.visible = false;
     const { x, y } = point;
     if (toolbarState === ToolBarState.RectLine) {
-      addRectLine({ point, event: e, maxArea: 650000 });
+      addRectLine({ point });
       return;
     }
     if (toolbarState === ToolBarState.LineRect) {
@@ -179,10 +176,6 @@ export default function useEventHandler() {
       setState(ToolBarState.Select);
     }
 
-    if (appRef.current) {
-      appRef.current.editor.visible = true;
-    }
-
     if (appRef.current?.editor.selector) {
       //@ts-ignore
       appRef.current.editor.selector.hoverStroker.visible = true;
@@ -190,12 +183,12 @@ export default function useEventHandler() {
   };
 
   const onSelect = (evt: EditorEvent) => {
+    const toolbarState = useToolbarStore.getState().state;
+    if (![ToolBarState.Select, ToolBarState.rectGroup].includes(toolbarState)) return;
     if (!evt.value) {
       updateSelectCmpIds([]);
       return;
     }
-    if (Array.isArray(evt.value) && evt.value.length === 0) return;
-    const toolbarState = useToolbarStore.getState().state;
     const selectEl = evt.value;
     if (selectEl) {
       let selectEls: IUI[] = [];
@@ -211,28 +204,30 @@ export default function useEventHandler() {
     setState(ToolBarState.Select);
   };
 
-  const onViewMove = debounce((evt: MoveEvent) => {
-    const { x, y } = evt.target.zoomLayer || {};
-    updateZoomLayer({ x, y });
-  }, 500);
+  const syncViewport = useMemo(
+    () =>
+      debounce(() => {
+        const layer = appRef.current?.tree.zoomLayer;
+        if (layer) updateZoomLayer({ x: layer.x, y: layer.y, scale: layer.scaleX });
+      }, 150),
+    [updateZoomLayer],
+  );
+  useEffect(() => () => syncViewport.cancel(), [syncViewport]);
+  const onViewMove = () => syncViewport();
+  const onViewZoom = () => syncViewport();
 
-  const onViewZoom = debounce((evt: ZoomEvent) => {
-    if (!evt.target.zoomLayer) return;
-    updateZoomLayer({ scale: evt.target.zoomLayer.scaleX });
-  }, 500);
-
-  const onMoveEnd = (evt: EditorMoveEvent) => {
-    let target = (evt.current as any).leafList.list as UI[];
+  const onMoveEnd = () => {
+    let target = appRef.current?.editor.list || [];
 
     if (!Array.isArray(target)) {
       target = [target];
     }
     const cmps = target.map((cmp) => ({ id: cmp.id, x: cmp.x, y: cmp.y }));
-    debounceUpdateCmps(cmps);
+    if (cmps.length) updateCmps(cmps);
   };
 
-  const onScaleEnd = (evt: EditorScaleEvent) => {
-    let target = (evt.current as any).leafList.list as UI[];
+  const onScaleEnd = () => {
+    let target = appRef.current?.editor.list || [];
 
     if (!Array.isArray(target)) {
       target = [target];
@@ -243,21 +238,26 @@ export default function useEventHandler() {
       y: cmp.y,
       width: cmp.width,
       height: cmp.height,
+      scaleX: cmp.scaleX,
+      scaleY: cmp.scaleY,
+      rotation: cmp.rotation,
     }));
-    debounceUpdateCmps(cmps);
+    if (cmps.length) updateCmps(cmps);
   };
 
-  const onRotateEnd = (evt: EditorRotateEvent) => {
-    let target = (evt.current as any).leafList.list as UI[];
+  const onRotateEnd = () => {
+    let target = appRef.current?.editor.list || [];
 
     if (!Array.isArray(target)) {
       target = [target];
     }
     const cmps = target.map((cmp) => ({
       id: cmp.id,
+      x: cmp.x,
+      y: cmp.y,
       rotation: cmp.rotation,
     }));
-    debounceUpdateCmps(cmps);
+    if (cmps.length) updateCmps(cmps);
   };
 
   const onPathChange = (evt: PathEditorEvent) => {

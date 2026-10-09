@@ -46,12 +46,16 @@ export default function Canvas({ renderId }: { renderId: string }) {
   const toolbarState = useToolbarStore((store) => store.state);
   const { rectGroupOption } = useBusinessStore.getState().businessStyle;
 
-  const isBus = [ToolBarState.LineRect, ToolBarState.rectGroup].includes(toolbarState);
+  const isBus = toolbarState === ToolBarState.rectGroup;
+  const isSelecting = toolbarState === ToolBarState.Select || isBus;
   const defaultEditorConfig = {
     ...editorConfig,
-    visible: ![ToolBarState.Dragger].includes(toolbarState),
+    moveable: true,
+    resizeable: true,
+    rotateable: true,
   };
   const busEditorConf: IEditorConfig = {
+    ...defaultEditorConfig,
     moveable: false,
     resizeable: false,
     rotateable: false,
@@ -69,6 +73,8 @@ export default function Canvas({ renderId }: { renderId: string }) {
   return (
     <App
       renderId={renderId}
+      panEnabled={toolbarState === ToolBarState.Dragger}
+      editorVisible={isSelecting}
       zoomLayer={zoomLayer}
       editorConf={isBus ? busEditorConf : defaultEditorConfig}
       selectCmpIds={selectCmpIds}

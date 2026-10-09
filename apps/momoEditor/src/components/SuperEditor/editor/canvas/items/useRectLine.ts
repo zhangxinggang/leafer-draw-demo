@@ -1,7 +1,9 @@
-import { Cmp, CmpLeaferAttr, CmpType, generateCmp } from '@momo/leafer-draw';
-import { IPointData, PointerEvent } from 'leafer-ui';
+import type { Cmp, CmpLeaferAttr } from '@momo/leafer-draw';
+import { CmpType, generateCmp } from '@momo/leafer-draw';
+import type { IPointData } from 'leafer-ui';
 import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
+import useBusinessStore from '../../../store/business';
 import useCanvasStore from '../../../store/canvas';
 import useModelStore from '../../../store/model';
 import {
@@ -15,7 +17,6 @@ const defaultRectHeight = 50;
 
 interface IAddRectLineProps {
   point: IPointData;
-  event: PointerEvent;
   width?: number;
   height?: number;
   maxArea?: number;
@@ -58,11 +59,13 @@ const useRectLine = () => {
     if (!a || !b) return false;
     return a.startX === b.startX && a.startY === b.startY && a.endX === b.endX && a.endY === b.endY;
   };
-  const addRectLine = ({ point, event, width, height, maxArea = Infinity }: IAddRectLineProps) => {
+  const addRectLine = ({ point, width, height, maxArea }: IAddRectLineProps) => {
     const preRef = preRectLine.current;
     if (!preRef) return;
-    const currentWidth = width || defaultRectWidth;
-    const currentHeight = height || defaultRectHeight;
+    const { businessConf } = useBusinessStore.getState();
+    const currentWidth = width || businessConf.rectWidth || defaultRectWidth;
+    const currentHeight = height || businessConf.rectHeight || defaultRectHeight;
+    const areaLimit = maxArea ?? businessConf.connGroupLimit;
     const halfWidth = currentWidth / 2;
     const halfHeight = currentHeight / 2;
     const { x, y } = point;
@@ -103,11 +106,11 @@ const useRectLine = () => {
       }
     }
     const areas = preRef.reduce((cur, next) => {
-      const { width, height } = fromPointGetWidthAndHeight(next[0]);
-      return cur + width * height;
+      const size = fromPointGetWidthAndHeight(next[0]);
+      return cur + size.width * size.height;
     }, currentWidth * currentHeight);
     const alreadyExists = preRef.some((d: any) => rectEquals(d[0], candidate));
-    if (alreadyExists || areas > maxArea) return;
+    if (alreadyExists || areas > areaLimit) return;
     const hasEnteredCandidate =
       x >= candidate.startX && x <= candidate.endX && y >= candidate.startY && y <= candidate.endY;
     if (!hasEnteredCandidate && lastId) return;

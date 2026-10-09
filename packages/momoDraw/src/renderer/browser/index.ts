@@ -1,29 +1,15 @@
-import { App } from 'leafer-ui';
 import { cmpRenderMap } from '../../renderer/components';
 import { initWorker, workerRender } from '../../renderer/worker';
-import { Cmp, CmpRenderParams, RenderType } from '../../types';
+import type { Cmp, CmpRenderParams } from '../../types';
+import { CmpType, RenderType } from '../../types';
 import { deleteMapsByIds, getCmpMaps, setMaps, updateMaps } from '../../utils/cmp';
 import { getApp } from '../../utils/leafer';
-
-let haveInit = false;
-const initLeaferInstance = (app: App) => {
-  if (!app?.tree || haveInit) return;
-  haveInit = true;
-  const add = app.tree.add;
-  app.tree.add = (...args: any[]) => {
-    const params = [...args];
-    // 去掉额外的渲染数据
-    delete params[0].backendData;
-    const result = add.apply(app.tree, args);
-    return result;
-  };
-};
+import { refreshConnections } from '../components/connector';
 
 function cmpRender(props: CmpRenderParams) {
   const app = getApp();
-  initLeaferInstance(app);
-  initWorker();
   if (!app) return;
+  initWorker();
   const { cmps, type = RenderType.ADD, noRecord, updateEditBox, busData } = props;
   const isDelete = type === RenderType.DELETE;
   const isUpdate = type === RenderType.UPDATE;
@@ -31,11 +17,12 @@ function cmpRender(props: CmpRenderParams) {
     cmps.forEach((cmp) => {
       const element = app.tree.findId(cmp.id);
       if (element) {
-        app.tree.remove(element);
+        element.destroy();
       }
     });
-    !noRecord && deleteMapsByIds(cmps.map((item) => item.id));
-    workerRender({ app, cmps, type, busData });
+    if (!noRecord) deleteMapsByIds(cmps.map((item) => item.id));
+    refreshConnections(app, busData);
+    workerRender({ app, cmps, type, busData, noRecord });
     return;
   }
   const cmpMaps = getCmpMaps();
@@ -46,28 +33,40 @@ function cmpRender(props: CmpRenderParams) {
       return cmp;
     }
   });
+  // Imports/undo may list a connector before its endpoint rectangles.
+  newCmps.sort(
+    (a, b) =>
+      Number(a.backendData?.type === CmpType.Connector) -
+      Number(b.backendData?.type === CmpType.Connector),
+  );
   newCmps.forEach((cmp) => {
     let cType = null;
-    let cmpData = { ...cmp, selectable: true } as Cmp;
+    const cmpData = { ...cmp, selectable: true } as Cmp;
     if (isUpdate) {
       cType = cmpData.backendData.type;
-      !noRecord && updateMaps([cmpData]);
+      if (!noRecord) updateMaps([cmpData]);
     } else {
       cType = cmp.backendData.type;
       if (typeof cmp.editable === 'undefined') {
         cmpData.editable = true; // 默认可编辑
       }
-      !noRecord && setMaps([cmpData]);
+      if (!noRecord) setMaps([cmpData]);
     }
     const renderFn = cmpRenderMap[cType];
     if (!renderFn) return;
-    const params = { cmp: { ...cmpData }, type: type || RenderType.ADD, busData };
+    const params = {
+      cmp: { ...cmpData },
+      type: type || RenderType.ADD,
+      busData,
+      recordBusiness: !noRecord,
+    };
     renderFn(params);
     if (updateEditBox) {
       app.editor.updateEditBox();
     }
   });
-  workerRender({ app, cmps: newCmps, type, busData });
+  refreshConnections(app, busData);
+  workerRender({ app, cmps: newCmps, type, busData, noRecord });
 }
 
 export { cmpRender };

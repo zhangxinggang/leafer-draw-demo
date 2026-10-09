@@ -1,4 +1,5 @@
-import {
+import type {
+  App,
   IArrowType,
   IBlendMode,
   IPaint,
@@ -22,6 +23,14 @@ export interface CmpBackendData {
   rectGroupId?: string | undefined; // 矩形组ID
   rectGroupChildIds?: string[]; // 矩形组子元素ID
   connectorId?: string | undefined; // 连接线组ID
+  wiring?: {
+    color: string;
+    badge: string;
+    start: boolean;
+    end: boolean;
+    single?: boolean;
+    adjacent?: boolean;
+  };
 }
 
 export interface Cmp {
@@ -62,6 +71,12 @@ export interface Cmp {
   /** 层叠顺序 */
   zIndex?: number;
   strokeWidth?: number;
+  strokeWidthFixed?: boolean;
+  dashPattern?: number[];
+  hittable?: boolean;
+  data?: Record<string, any>;
+  textLines?: string[];
+  textFill?: string;
   /** 点坐标（用于线条和箭头） */
   points?: number[] | IPointData[];
   text?: string;
@@ -171,6 +186,8 @@ export enum CmpType {
 }
 
 export interface RenderParams {
+  app?: App;
+  recordBusiness?: boolean;
   cmp: CmpNeedId;
   type?: RenderType;
   busData?: IBusinessStore;

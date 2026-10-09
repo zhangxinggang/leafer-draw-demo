@@ -1,19 +1,21 @@
 import { getConnStartCircleId } from '../renderer/utils/conn';
-import { Cmp, CmpType } from '../types';
+import type { Cmp } from '../types';
+import { CmpType } from '../types';
 import { getCmpByIds, updateMaps } from './cmp';
 import { getApp } from './leafer';
 import { getBoundingMaxMinTotal } from './utils';
 
 const getExtraRemoveIds = (ids: string[]) => {
   if (!globalThis.spuEditorCmpRenderMap) return ids;
+  const removed = new Set(ids);
   const lineIds: string[] = [];
-  ids.forEach((id) => {
-    const ele = globalThis.spuEditorCmpRenderMap.get(id);
-    const isRectLine = ele?.backendData.type === CmpType.RectLine;
-    const connectorId = ele?.backendData.connectorId;
-    if (isRectLine && connectorId) {
-      lineIds.push(connectorId);
-    }
+  globalThis.spuEditorCmpRenderMap.forEach((cmp: Cmp) => {
+    const data = cmp.backendData;
+    if (
+      data?.type === CmpType.Connector &&
+      (removed.has(data.sourceConnId || '') || removed.has(data.targetConnId || ''))
+    )
+      lineIds.push(cmp.id);
   });
   return Array.from(new Set([...ids, ...lineIds]));
 };
@@ -54,19 +56,19 @@ const onBusAddCmp = (cmp: Cmp) => {
 };
 
 const onBusDeleteCmp = (cmp: Cmp) => {
+  if (!cmp) return;
   const app = getApp();
   const id = cmp.id;
   const { sourceConnId, targetConnId, type } = cmp.backendData || {};
   if (type === CmpType.Connector) {
-    const backendData = {
-      connectorId: undefined,
-      sourceConnId: undefined,
-      targetConnId: undefined,
-    };
-    updateMaps([
-      { id: sourceConnId, backendData: { ...backendData } },
-      { id: targetConnId, backendData: { ...backendData } },
-    ]);
+    if (sourceConnId && getCmpByIds([sourceConnId])[0])
+      updateMaps([
+        { id: sourceConnId, backendData: { connectorId: undefined, targetConnId: undefined } },
+      ]);
+    if (targetConnId && getCmpByIds([targetConnId])[0])
+      updateMaps([
+        { id: targetConnId, backendData: { connectorId: undefined, sourceConnId: undefined } },
+      ]);
     if (app) {
       const connStartCircleId = getConnStartCircleId(id);
       const connElement = app.tree.findId(connStartCircleId);
@@ -116,42 +118,20 @@ const fromIdGetEntireRectLines = (id: string) => {
 };
 
 const checkIsContinuous = (cmps: Cmp[]) => {
-  let firstRect: Cmp | null = null;
-  let lastRect: Cmp | null = null;
-  const objs = cmps.reduce((current, item) => {
-    const sourceConnId = item.backendData?.sourceConnId;
-    const targetConnId = item.backendData?.targetConnId;
-    // 第一个矩形：sourceConnId为空或不存在
-    if (!sourceConnId && !firstRect) {
-      firstRect = item;
-    }
-    // 最后一个矩形：targetConnId为空或不存在
-    if (!targetConnId && !lastRect) {
-      lastRect = item;
-    }
-    return { ...current, [item.id]: item };
-  }, {});
-  if (!firstRect || !lastRect) return false;
-  // 存在对角，然后第一个与最后一个坐标相同
-  const check = (rect: Cmp) => {
-    const targetConnId = rect.backendData?.targetConnId;
-    if (!targetConnId) return true;
-    const target = objs[targetConnId] || {};
-    if (rect.x !== target.x && rect.y !== target.x) {
-      return false;
-    } else {
-      return check(target);
-    }
-  };
-  const continuous = check(firstRect);
-  if (!continuous) return false;
-  // 检测一个与最后一个矩形
-  const haveXSome = lastRect.x === firstRect.x;
-  const haveYSome = lastRect.y === firstRect.y;
-  // 存在同行同列
-  return haveXSome || haveYSome;
+  if (!cmps.length || cmps.some((cmp) => !cmp)) return false;
+  const nodes = new Map(cmps.map((cmp) => [cmp.id, cmp]));
+  let current = cmps.find((cmp) => !cmp.backendData?.sourceConnId);
+  const visited = new Set<string>();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const nextId = current.backendData?.targetConnId;
+    if (!nextId) break;
+    const next = nodes.get(nextId);
+    if (!next || (current.x !== next.x && current.y !== next.y)) return false;
+    current = next;
+  }
+  return visited.size === cmps.length && !current?.backendData?.targetConnId;
 };
-
 /**
  * 检测连接是否形成完整的矩形
  * @param rects 连接的矩形节点数组
@@ -166,6 +146,7 @@ const checkConnIsSquare = (
     rectGroupLimitHeight: number;
   },
 ): Cmp[] => {
+  if (!rects?.length) return [];
   const cmpItems = getCmpByIds(rects.map((item) => item.id));
   const isContinuous = checkIsContinuous(cmpItems);
   if (!isContinuous) return rects;
@@ -176,8 +157,25 @@ const checkConnIsSquare = (
 
   // 检查限制条件
   const { connGroupLimit, rectGroupLimitWidth, rectGroupLimitHeight } = options || {};
-  const minLimit = Math.min(connGroupLimit, rectGroupLimitWidth, rectGroupLimitHeight);
-  if (boundingWidth > minLimit || boundingHeight > minLimit || total > connGroupLimit) {
+  const bounds = rects.map(({ x = 0, y = 0, width = 0, height = 0 }) => ({ x, y, width, height }));
+  const hasOverlap = bounds.some((a, index) =>
+    bounds
+      .slice(index + 1)
+      .some(
+        (b) =>
+          a.x < b.x + b.width &&
+          b.x < a.x + a.width &&
+          a.y < b.y + b.height &&
+          b.y < a.y + a.height,
+      ),
+  );
+  if (
+    boundingWidth > rectGroupLimitWidth ||
+    boundingHeight > rectGroupLimitHeight ||
+    total > connGroupLimit ||
+    total !== boundingWidth * boundingHeight ||
+    hasOverlap
+  ) {
     return rects;
   }
   // 形成完整矩形且未超出限制，返回空数组
